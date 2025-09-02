@@ -24,13 +24,44 @@ type TableData = {
 
 const tableTitles = ["Engineering", "Procurement", "Execution"];
 
+const getDefaultHiddenColumns = (tables: TableData[]): Record<number, Set<string>> => {
+  const hidden: Record<number, Set<string>> = {};
+
+  tables.forEach((table, index) => {
+    hidden[index] = new Set<string>();
+    const title = tableTitles[index];
+
+    if (title === "Engineering") {
+      table.headers.forEach(header => {
+        if (!header.includes("Shop Drawing")) {
+          hidden[index].add(header);
+        }
+      });
+    } else if (title === "Procurement") {
+      table.headers.forEach(header => {
+        if (header !== "Procurement Status") {
+          hidden[index].add(header);
+        }
+      });
+    } else if (title === "Execution") {
+      table.headers.forEach(header => {
+        if (!header.toLowerCase().includes("start") && !header.toLowerCase().includes("finish")) {
+          hidden[index].add(header);
+        }
+      });
+    }
+  });
+
+  return hidden;
+};
+
 export function TableViewer({ initialData, onReset, fileName }: TableViewerProps) {
   const [editedData, setEditedData] = useState<TableData[]>(initialData.tables);
-  const [hiddenColumns, setHiddenColumns] = useState<Record<number, Set<string>>>({});
+  const [hiddenColumns, setHiddenColumns] = useState<Record<number, Set<string>>>(() => getDefaultHiddenColumns(initialData.tables));
 
   const handleCellChange = (tableIndex: number, rowIndex: number, colIndex: number, value: string) => {
     setEditedData(prevData => {
-      const newData = [...prevData];
+      const newData = JSON.parse(JSON.stringify(prevData));
       newData[tableIndex].rows[rowIndex][colIndex] = value;
       return newData;
     });
@@ -42,11 +73,13 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
       if (!newHidden[tableIndex]) {
         newHidden[tableIndex] = new Set();
       }
-      if (newHidden[tableIndex].has(header)) {
-        newHidden[tableIndex].delete(header);
+      const newSet = new Set(newHidden[tableIndex]);
+      if (newSet.has(header)) {
+        newSet.delete(header);
       } else {
-        newHidden[tableIndex].add(header);
+        newSet.add(header);
       }
+      newHidden[tableIndex] = newSet;
       return newHidden;
     });
   };
@@ -120,18 +153,23 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const visibleTables = useMemo(() => {
     return editedData.map((table, tableIndex) => {
       const hidden = hiddenColumns[tableIndex] || new Set();
-      const headerIndexMap = table.headers
-        .map((header, index) => (hidden.has(header) ? -1 : index))
-        .filter(index => index !== -1);
+      
+      const originalHeaders = table.headers;
+      const visibleHeaders = originalHeaders.filter(h => !hidden.has(h));
 
-      const visibleHeaders = headerIndexMap.map(index => table.headers[index]);
-      const visibleRows = table.rows.map(row => headerIndexMap.map(index => row[index]));
+      const headerIndexMap: Record<string, number> = {};
+      originalHeaders.forEach((h, i) => {
+        headerIndexMap[h] = i;
+      });
+      
+      const visibleRows = table.rows.map(row => 
+        visibleHeaders.map(header => row[headerIndexMap[header]])
+      );
 
       return {
-        originalHeaders: table.headers,
+        originalHeaders: originalHeaders,
         headers: visibleHeaders,
         rows: visibleRows,
-        headerIndexMap,
       };
     });
   }, [editedData, hiddenColumns]);
@@ -178,60 +216,65 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         </div>
       </CardHeader>
       <CardContent className="space-y-8">
-        {visibleTables.map((table, tableIndex) => (
-          <div key={`table-container-${tableIndex}`} className="p-4 border rounded-lg">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                <h3 className="text-lg font-semibold">{tableTitles[tableIndex] || `Table ${tableIndex + 1}`}</h3>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                      <ChevronsUpDown className="mr-2 h-4 w-4" />
-                      Show/Hide Columns
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    {table.originalHeaders.map(header => (
-                      <DropdownMenuCheckboxItem
-                        key={header}
-                        checked={!hiddenColumns[tableIndex]?.has(header)}
-                        onCheckedChange={() => handleColumnToggle(tableIndex, header)}
-                      >
-                        {header}
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            <div className="overflow-x-auto relative">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {table.headers.map((header, i) => (
-                      <TableHead key={`head-${tableIndex}-${i}`}>{header}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {table.rows.map((row, rowIndex) => (
-                    <TableRow key={`row-${tableIndex}-${rowIndex}`}>
-                      {row.map((cell, visibleColIndex) => {
-                        const originalColIndex = table.headerIndexMap[visibleColIndex];
-                        return (
-                         <EditableCell
-                          key={`cell-${tableIndex}-${rowIndex}-${originalColIndex}`}
-                          value={cell}
-                          onValueChange={(newValue) => {
-                            handleCellChange(tableIndex, rowIndex, originalColIndex, newValue)
-                          }}
-                        />
-                      )})}
+        {editedData.map((table, tableIndex) => {
+          const currentVisibleTable = visibleTables[tableIndex];
+          
+          return (
+            <div key={`table-container-${tableIndex}`} className="p-4 border rounded-lg">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                  <h3 className="text-lg font-semibold">{tableTitles[tableIndex] || `Table ${tableIndex + 1}`}</h3>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        <ChevronsUpDown className="mr-2 h-4 w-4" />
+                        Show/Hide Columns
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {table.headers.map(header => (
+                        <DropdownMenuCheckboxItem
+                          key={header}
+                          checked={!hiddenColumns[tableIndex]?.has(header)}
+                          onCheckedChange={() => handleColumnToggle(tableIndex, header)}
+                        >
+                          {header}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              <div className="overflow-x-auto relative">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {currentVisibleTable.headers.map((header, i) => (
+                        <TableHead key={`head-${tableIndex}-${i}`}>{header}</TableHead>
+                      ))}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {currentVisibleTable.rows.map((row, rowIndex) => (
+                      <TableRow key={`row-${tableIndex}-${rowIndex}`}>
+                        {row.map((cell, colIndex) => {
+                          const originalColName = currentVisibleTable.headers[colIndex];
+                          const originalColIndex = table.headers.indexOf(originalColName);
+                          return (
+                           <EditableCell
+                            key={`cell-${tableIndex}-${rowIndex}-${originalColIndex}`}
+                            value={cell}
+                            onValueChange={(newValue) => {
+                              handleCellChange(tableIndex, rowIndex, originalColIndex, newValue)
+                            }}
+                          />
+                        )})}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </CardContent>
     </Card>
   );
