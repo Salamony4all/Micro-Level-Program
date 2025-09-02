@@ -24,7 +24,7 @@ interface TableViewerProps {
 type TableData = {
   title: string;
   headers: string[];
-  rows: string[][];
+  rows: (string | null)[][];
 };
 
 type LocationData = {
@@ -77,7 +77,7 @@ const getDefaultHiddenColumns = (locations: LocationData[]): Record<string, Reco
 const initializeTableData = (locations: LocationData[]): LocationData[] => {
   return locations.map(loc => ({
     ...loc,
-    tables: loc.tables.map(table => ({...table}))
+    tables: loc.tables.map(table => ({...table, rows: table.rows.map(row => [...row])}))
   }));
 };
 
@@ -274,14 +274,13 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   body: visibleRows,
                   startY: startY,
                   willDrawCell: function (data: any) {
-                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && data.column.dataKey === visibleHeaders.length - 1;
+                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && data.column.dataKey === visibleHeaders.length - 2;
                     if (isProcurementStatusColumn) {
-                      data.cell.styles.fontStyle = 'bold';
                       data.cell.text = ''; 
                     }
                   },
                   didDrawCell: function (data: any) {
-                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && data.column.dataKey === visibleHeaders.length - 1;
+                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && data.column.dataKey === visibleHeaders.length - 2;
                     if (isProcurementStatusColumn && data.cell.raw) {
                       const rawText = String(data.cell.raw);
                       const cellText = rawText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
@@ -421,7 +420,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                 <TableRow key={`row-${locIndex}-${table.title}-${rowIndex}`}>
                                   {visibleHeaders.map((header) => {
                                     const colIndex = headerIndexMap[header];
-                                    const cellValue = row[colIndex];
+                                    const cellValue = row[colIndex] || '';
                                     const lowerHeader = header.toLowerCase();
                                     const lowerTableTitle = table.title.toLowerCase();
 
