@@ -8,7 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EditableCell } from './editable-cell';
-import { Download, ChevronsUpDown, RotateCcw } from 'lucide-react';
+import { Download, ChevronsUpDown, RotateCcw, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface TableViewerProps {
   initialData: ExtractTablesOutput;
@@ -68,7 +70,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     URL.revokeObjectURL(url);
   };
   
-  const handleDownload = (tableIndex: number) => {
+  const handleDownloadCsv = (tableIndex: number) => {
     const table = editedData[tableIndex];
     const hidden = hiddenColumns[tableIndex] || new Set();
 
@@ -81,6 +83,31 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
 
     const cleanFileName = fileName.substring(0, fileName.lastIndexOf('.')).replace(/[^a-z0-9]/gi, '_').toLowerCase();
     downloadAsCsv(`${cleanFileName}_table_${tableIndex + 1}.csv`, visibleHeaders, visibleRows);
+  };
+
+  const handleDownloadPdf = (tableIndex: number) => {
+    const table = editedData[tableIndex];
+    const hidden = hiddenColumns[tableIndex] || new Set();
+    const cleanFileName = fileName.substring(0, fileName.lastIndexOf('.')).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    
+    const doc = new jsPDF();
+    
+    const visibleHeaders = table.headers.filter(h => !hidden.has(h));
+    const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
+    const visibleRows = table.rows.map(row => 
+      visibleHeaderIndices.map(index => row[index])
+    );
+
+    (doc as any).autoTable({
+        head: [visibleHeaders],
+        body: visibleRows,
+        didDrawPage: function (data: any) {
+            doc.setFontSize(20);
+            doc.text(`Table ${tableIndex + 1} from ${fileName}`, data.settings.margin.left, 15);
+        }
+    });
+    
+    doc.save(`${cleanFileName}_table_${tableIndex + 1}.pdf`);
   };
   
   const visibleTables = useMemo(() => {
@@ -139,7 +166,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
           {visibleTables.map((table, tableIndex) => (
             <TabsContent key={`content-${tableIndex}`} value={`table-${tableIndex}`}>
               <div className="mt-4 p-4 border rounded-lg">
-                 <div className="flex justify-end mb-4 gap-2">
+                 <div className="flex justify-end mb-4 gap-2 flex-wrap">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline">
@@ -159,7 +186,11 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    <Button onClick={() => handleDownload(tableIndex)} className="bg-accent hover:bg-accent/90">
+                    <Button onClick={() => handleDownloadPdf(tableIndex)} variant="outline">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Download as PDF
+                    </Button>
+                    <Button onClick={() => handleDownloadCsv(tableIndex)} className="bg-accent hover:bg-accent/90">
                       <Download className="mr-2 h-4 w-4" />
                       Download as CSV
                     </Button>
