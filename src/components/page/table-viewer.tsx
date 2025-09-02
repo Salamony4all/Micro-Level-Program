@@ -239,26 +239,34 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const downloadAllAsPdf = async () => {
     const doc = new jsPDF();
     const cleanFileName = getCleanFileName();
+    let fontName = 'Helvetica'; // Default font
 
-    // Noto Sans is a font that supports a wide range of characters, including emojis
-    const font = await fetch('/NotoSans-Regular.ttf');
-    const fontBuffer = await font.arrayBuffer();
-    const fontBlob = new Blob([fontBuffer], { type: 'font/ttf' });
-    const fontDataUrl = await new Promise<string>(resolve => {
-        const reader = new FileReader();
-        reader.onload = (event) => resolve(event.target!.result as string);
-        reader.readAsDataURL(fontBlob);
-    });
+    try {
+        // Noto Sans is a font that supports a wide range of characters, including emojis
+        const font = await fetch('/NotoSans-Regular.ttf');
+        if (!font.ok) throw new Error("Font not found");
+        const fontBuffer = await font.arrayBuffer();
+        const fontBlob = new Blob([fontBuffer], { type: 'font/ttf' });
+        const fontDataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target!.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(fontBlob);
+        });
+        
+        const customFontName = 'NotoSans';
+        doc.addFileToVFS(`${customFontName}.ttf`, fontDataUrl.split(',')[1]);
+        doc.addFont(`${customFontName}.ttf`, customFontName, 'normal');
+        doc.setFont(customFontName);
+        fontName = customFontName;
+    } catch (e) {
+        console.error("Could not load custom font for PDF, falling back to default.", e);
+    }
     
-    const fontName = 'NotoSans';
-    doc.addFileToVFS(`${fontName}.ttf`, fontDataUrl.split(',')[1]);
-    doc.addFont(`${fontName}.ttf`, fontName, 'normal');
-    doc.setFont(fontName);
-
     let startY = 15;
 
     editedData.forEach((loc, locIndex) => {
-        const originalLocation = initialData.locations[locIndex].location;
+        const originalLocation = initialData.locations[locIndex];
 
         doc.setFontSize(20);
         doc.text(`Location: ${editedLocations[locIndex]}`, (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
@@ -286,7 +294,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   body: visibleRows,
                   startY: startY,
                    styles: {
-                      font: fontName, // Use the Noto Sans font for the table
+                      font: fontName, // Use the selected font for the table
                   },
               });
 
@@ -294,7 +302,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         });
     });
     
-    doc.save(`${getCleanFileName()}_all_tables.pdf`);
+    doc.save(`${cleanFileName}_all_tables.pdf`);
   };
   
   if (editedData.length === 0) {
