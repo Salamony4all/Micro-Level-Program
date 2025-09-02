@@ -277,12 +277,12 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
-    doc.text("Alshaya Enterprises ™", (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
+    doc.text("Alshaya Enterprises ™", 14, startY);
     startY += 5;
     
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.text("Micro level Program / Action Plan", (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
+    doc.text("Micro level Program / Action Plan", 14, startY);
     startY += 5;
 
     doc.setFont('helvetica', 'normal');
