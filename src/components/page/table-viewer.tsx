@@ -35,7 +35,6 @@ type LocationData = {
 
 const tableTitlesOrder = ["Engineering", "Procurement", "Execution"];
 
-
 const getDefaultHiddenColumns = (locations: LocationData[]): Record<string, Record<string, Set<string>>> => {
   const hidden: Record<string, Record<string, Set<string>>> = {};
 
@@ -48,7 +47,7 @@ const getDefaultHiddenColumns = (locations: LocationData[]): Record<string, Reco
         const lowerHeader = header.toLowerCase();
 
         // Always show "Main Activity" and "Remarks"
-        if (lowerHeader.includes("main activity") || lowerHeader.includes("remarks") || lowerHeader.includes("activity/item")) {
+        if (lowerHeader.includes("main activity") || lowerHeader.includes("activity/item")) {
           return false;
         }
         
@@ -67,7 +66,7 @@ const getDefaultHiddenColumns = (locations: LocationData[]): Record<string, Reco
       };
 
       table.headers.forEach(header => {
-        if (shouldHide(header)) {
+        if (shouldHide(header) || header === "Remarks") {
           newSet.add(header);
         }
       });
@@ -85,18 +84,11 @@ const initializeTableData = (locations: LocationData[]): LocationData[] => {
   }));
 };
 
-
 export function TableViewer({ initialData, onReset, fileName }: TableViewerProps) {
   const [editedData, setEditedData] = useState<LocationData[]>([]);
   const [hiddenColumns, setHiddenColumns] = useState<Record<string, Record<string, Set<string>>>>({});
   const [editedLocations, setEditedLocations] = useState<string[]>([]);
-  const [projectDetails, setProjectDetails] = useState<ProjectDetailsData>({
-    date: format(new Date(), 'yyyy-MM-dd'),
-    referenceNumber: 'AE/MLP/001',
-    projectName: initialData.locations[0]?.location || 'New Project',
-    clientName: 'Client Name',
-    clientContactPerson: 'Contact Person',
-  });
+  const [projectDetails, setProjectDetails] = useState<ProjectDetailsData | null>(null);
   
   useEffect(() => {
     const dataWithDates = initialData.locations.map(loc => ({
@@ -132,7 +124,27 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     setEditedData(initializeTableData(dataWithDates));
     setHiddenColumns(getDefaultHiddenColumns(initialData.locations));
     setEditedLocations(initialData.locations.map(l => l.location));
+
+    // Load project details from local storage or set defaults
+    const savedDetails = localStorage.getItem('projectDetails');
+    if (savedDetails) {
+      setProjectDetails(JSON.parse(savedDetails));
+    } else {
+      setProjectDetails({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        referenceNumber: 'AE/MLP/001',
+        projectName: initialData.locations[0]?.location || 'New Project',
+        clientName: 'Client Name',
+        clientContactPerson: 'Contact Person',
+      });
+    }
+
   }, [initialData]);
+
+  const handleProjectDetailsChange = (newData: ProjectDetailsData) => {
+    setProjectDetails(newData);
+    localStorage.setItem('projectDetails', JSON.stringify(newData));
+  };
 
 
   const handleLocationChange = (newLocation: string, index: number) => {
@@ -158,7 +170,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
 
   const handleColumnToggle = (location: string, tableTitle: string, header: string) => {
     const lowerHeader = header.toLowerCase();
-    if (lowerHeader.includes("main activity") || lowerHeader.includes("remarks") || lowerHeader.includes("activity/item")) {
+    if (lowerHeader.includes("main activity") || lowerHeader.includes("activity/item")) {
       return;
     }
     
@@ -256,6 +268,8 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   };
 
   const downloadAllAsPdf = async () => {
+    if (!projectDetails) return;
+
     const doc = new jsPDF();
     const cleanFileName = getCleanFileName();
     
@@ -326,12 +340,15 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                     }
                   },
                   didDrawCell: function (data: any) {
-                    if (data.section !== 'body') {
-                        // Set header color for procurement status
-                        const isProcurementTable = table.title.toLowerCase() === 'procurement';
-                        if (isProcurementTable && data.column.index === data.table.columns.length - 2) { // Assuming status is second to last
+                    if (data.section === 'head') {
+                        const header = visibleHeaders[data.column.index];
+                        if (table.title.toLowerCase() === 'procurement' && header.toLowerCase().includes('status')) {
                             doc.setTextColor('#000000');
                         }
+                        return;
+                    }
+
+                    if (data.section !== 'body') {
                         return;
                     }
                     const header = visibleHeaders[data.column.index];
@@ -372,12 +389,12 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     doc.save(`${getCleanFileName()}_all_tables.pdf`);
   };
   
-  if (editedData.length === 0) {
+  if (editedData.length === 0 || !projectDetails) {
       return (
         <Card className="w-full max-w-4xl mx-auto shadow-lg">
             <CardHeader>
-                <CardTitle>No Micro Level Program Found</CardTitle>
-                <CardDescription>There is no data to display.</CardDescription>
+                <CardTitle>Loading Data...</CardTitle>
+                <CardDescription>Please wait while we prepare the data.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Button onClick={onReset} variant="outline">
@@ -391,7 +408,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
 
   return (
     <>
-      <ProjectDetails data={projectDetails} onDataChange={setProjectDetails} />
+      <ProjectDetails data={projectDetails} onDataChange={handleProjectDetailsChange} />
       <Card className="w-full max-w-7xl mx-auto shadow-lg mt-8">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -462,7 +479,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                       key={header}
                                       checked={!hidden.has(header)}
                                       onCheckedChange={() => handleColumnToggle(originalLocation.location, table.title, header)}
-                                      disabled={header.toLowerCase().includes("main activity") || header.toLowerCase().includes("remarks") || header.toLowerCase().includes("activity/item")}
+                                      disabled={header.toLowerCase().includes("main activity") || header.toLowerCase().includes("activity/item")}
                                     >
                                       {header}
                                     </DropdownMenuCheckboxItem>
@@ -559,3 +576,5 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     </>
   );
 }
+
+    
