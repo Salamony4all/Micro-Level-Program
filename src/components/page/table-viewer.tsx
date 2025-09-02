@@ -123,11 +123,15 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
       const visibleHeaders = table.headers.filter(h => !hidden.has(h));
       const headerIndexMap = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
       
+      const visibleRows = table.rows.map(row => {
+          return headerIndexMap.map(index => row[index]);
+      });
+
       return {
         originalHeaders: table.headers,
         headers: visibleHeaders,
-        rows: table.rows,
-        headerIndexMap,
+        rows: table.rows, // pass original rows
+        headerIndexMap, // and the map
       };
     });
   }, [editedData, hiddenColumns]);
@@ -210,11 +214,11 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                 <TableBody>
                   {table.rows.map((row, rowIndex) => (
                     <TableRow key={`row-${tableIndex}-${rowIndex}`}>
-                      {table.headerIndexMap.map((colIndex, i) => (
+                      {table.headerIndexMap.map((originalColIndex, visibleColIndex) => (
                         <EditableCell
-                          key={`cell-${tableIndex}-${rowIndex}-${i}`}
-                          value={row[colIndex]}
-                          onValueChange={(newValue) => handleCellChange(tableIndex, rowIndex, colIndex, newValue)}
+                          key={`cell-${tableIndex}-${rowIndex}-${visibleColIndex}`}
+                          value={row[originalColIndex]}
+                          onValueChange={(newValue) => handleCellChange(tableIndex, rowIndex, originalColIndex, newValue)}
                         />
                       ))}
                     </TableRow>
