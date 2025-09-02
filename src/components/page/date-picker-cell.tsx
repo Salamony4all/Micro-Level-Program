@@ -17,9 +17,10 @@ interface DatePickerCellProps {
   value: string;
   onValueChange: (newValue: string) => void;
   className?: string;
+  as?: 'div' | 'td';
 }
 
-export function DatePickerCell({ value, onValueChange, className }: DatePickerCellProps) {
+export function DatePickerCell({ value, onValueChange, className, as = 'div' }: DatePickerCellProps) {
   const [open, setOpen] = useState(false);
   
   // The date from the table might be in 'yyyy-MM-dd' or other formats.
@@ -42,9 +43,10 @@ export function DatePickerCell({ value, onValueChange, className }: DatePickerCe
     }
   }
 
+  const Component = as === 'td' ? TableCell : 'div';
 
   return (
-    <TableCell className={cn("p-2", className)}>
+    <Component className={cn("p-2", className)}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -72,6 +74,6 @@ export function DatePickerCell({ value, onValueChange, className }: DatePickerCe
           />
         </PopoverContent>
       </Popover>
-    </TableCell>
+    </Component>
   );
 }

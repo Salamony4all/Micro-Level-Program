@@ -4,7 +4,7 @@ import { format, parse } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DatePickerCell } from './date-picker-cell'; // Using this for consistency
+import { DatePickerCell } from './date-picker-cell';
 
 export type ProjectDetailsData = {
   date: string;
@@ -36,6 +36,7 @@ export function ProjectDetails({ data, onDataChange }: ProjectDetailsProps) {
             value={data.date}
             onValueChange={(newValue) => handleChange('date', newValue)}
             className="p-0"
+            as="div"
           />
         </div>
         <div className="space-y-2">

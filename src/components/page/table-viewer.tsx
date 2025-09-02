@@ -317,7 +317,6 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                     if (data.section !== 'body') {
                       return;
                     }
-
                     const header = visibleHeaders[data.column.index];
                     if (!header) return;
 
@@ -493,6 +492,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                             onValueChange={(newValue) => {
                                               handleCellChange(locIndex, tableOrderIndex, rowIndex, colIndex, newValue)
                                             }}
+                                            as="td"
                                           />
                                         )
                                       }
