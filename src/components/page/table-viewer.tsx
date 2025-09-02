@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import type { ExtractTablesOutput } from '@/ai/flows/extract-and-display-tables';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableHeader, TableHead, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableHeader, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EditableCell } from './editable-cell';
 import { DatePickerCell } from './date-picker-cell';
 import { StatusDropdownCell } from './status-dropdown-cell';
-import { Download, ChevronsUpDown, RotateCcw, FileText } from 'lucide-react';
+import { Download, ChevronsUpDown, RotateCcw, FileText, Trash2, PlusCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
@@ -133,6 +133,35 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     });
   };
   
+  const handleAddRow = (locIndex: number, tableIndex: number) => {
+    setEditedData(prevData => {
+      const newData = JSON.parse(JSON.stringify(prevData));
+      const table = newData[locIndex].tables[tableIndex];
+      const newRow = Array(table.headers.length).fill('');
+      
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const lowerTitle = table.title.toLowerCase();
+      if (lowerTitle === "engineering" || lowerTitle === "execution") {
+        table.headers.forEach((header, index) => {
+          if (header.toLowerCase().includes('date')) {
+            newRow[index] = today;
+          }
+        });
+      }
+      
+      table.rows.push(newRow);
+      return newData;
+    });
+  };
+
+  const handleDeleteRow = (locIndex: number, tableIndex: number, rowIndex: number) => {
+    setEditedData(prevData => {
+      const newData = JSON.parse(JSON.stringify(prevData));
+      newData[locIndex].tables[tableIndex].rows.splice(rowIndex, 1);
+      return newData;
+    });
+  };
+
   const getCleanFileName = () => fileName.substring(0, fileName.lastIndexOf('.')).replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
   const downloadAllAsCsv = () => {
@@ -171,8 +200,13 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     const cleanFileName = getCleanFileName();
     let startY = 15;
 
-    editedData.forEach((loc, locIndex) => {
+    editedData.forEach((loc) => {
 
+      if (startY > 15) {
+          doc.addPage();
+          startY = 15;
+      }
+      
       doc.setFontSize(20);
       doc.text(`Location: ${loc.location}`, (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
       startY += 15;
@@ -181,11 +215,16 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         const hidden = hiddenColumns[loc.location]?.[table.title] || new Set();
         const visibleHeaders = table.headers.filter(h => !hidden.has(h));
         const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
-        const visibleRows = table.rows.map(row => visibleHeaderIndices.map(index => String(row[index])));
+        const visibleRows = table.rows.map(row => visibleHeaderIndices.map(index => String(row[index] || '')));
         
+        if (startY + 20 > doc.internal.pageSize.getHeight()) {
+            doc.addPage();
+            startY = 15;
+        }
+
         doc.setFontSize(16);
         doc.text(table.title, 14, startY);
-        startY += 5;
+        startY += 7;
 
         (doc as any).autoTable({
             head: [visibleHeaders],
@@ -193,7 +232,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
             startY: startY,
         });
 
-        startY = (doc as any).lastAutoTable.finalY + 10;
+        startY = (doc as any).lastAutoTable.finalY + 15;
       });
     });
     
@@ -257,6 +296,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   table.headers.forEach((h, i) => {
                       headerIndexMap[h] = i;
                   });
+                  const actualTableIndex = initialData.locations[locIndex].tables.findIndex(t => t.title === table.title);
 
                   return (
                     <div key={`table-container-${locIndex}-${tableIndex}`} className="p-4 border rounded-lg">
@@ -289,6 +329,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                               {visibleHeaders.map((header, i) => (
                                 <TableHead key={`head-${locIndex}-${tableIndex}-${i}`}>{header}</TableHead>
                               ))}
+                              <TableHead>Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -306,7 +347,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                         key={`cell-${locIndex}-${tableIndex}-${rowIndex}-${colIndex}`}
                                         value={cellValue}
                                         onValueChange={(newValue) => {
-                                          handleCellChange(locIndex, tableIndex, rowIndex, colIndex, newValue)
+                                          handleCellChange(locIndex, actualTableIndex, rowIndex, colIndex, newValue)
                                         }}
                                       />
                                     )
@@ -318,7 +359,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                           key={`cell-${locIndex}-${tableIndex}-${rowIndex}-${colIndex}`}
                                           value={cellValue}
                                           onValueChange={(newValue) => {
-                                            handleCellChange(locIndex, tableIndex, rowIndex, colIndex, newValue)
+                                            handleCellChange(locIndex, actualTableIndex, rowIndex, colIndex, newValue)
                                           }}
                                         />
                                      )
@@ -329,15 +370,26 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                     key={`cell-${locIndex}-${tableIndex}-${rowIndex}-${colIndex}`}
                                     value={cellValue}
                                     onValueChange={(newValue) => {
-                                      handleCellChange(locIndex, tableIndex, rowIndex, colIndex, newValue)
+                                      handleCellChange(locIndex, actualTableIndex, rowIndex, colIndex, newValue)
                                     }}
                                   />
                                 )})}
+                                <TableCell>
+                                    <Button variant="ghost" size="icon" onClick={() => handleDeleteRow(locIndex, actualTableIndex, rowIndex)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
                         </Table>
                       </div>
+                       <div className="flex justify-end mt-4">
+                            <Button variant="outline" onClick={() => handleAddRow(locIndex, actualTableIndex)}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Add Row
+                            </Button>
+                        </div>
                     </div>
                   )
               })}
@@ -348,3 +400,5 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     </Card>
   );
 }
+
+    
