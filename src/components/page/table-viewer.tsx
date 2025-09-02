@@ -7,9 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EditableCell } from './editable-cell';
+import { DatePickerCell } from './date-picker-cell';
+import { StatusDropdownCell } from './status-dropdown-cell';
 import { Download, ChevronsUpDown, RotateCcw, FileText } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { format } from 'date-fns';
 
 interface TableViewerProps {
   initialData: ExtractTablesOutput;
@@ -60,8 +63,36 @@ const getDefaultHiddenColumns = (tables: TableData[]): Record<number, Set<string
   return hidden;
 };
 
+const initializeTableData = (tables: TableData[]): TableData[] => {
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  return tables.map((table, tableIndex) => {
+    const title = tableTitles[tableIndex];
+    if (title === "Engineering" || title === "Execution") {
+      const dateColumnIndices = table.headers
+        .map((h, i) => (h.toLowerCase().includes('date') ? i : -1))
+        .filter(i => i !== -1);
+      
+      if (dateColumnIndices.length > 0) {
+        const newRows = table.rows.map(row => {
+          const newRow = [...row];
+          dateColumnIndices.forEach(index => {
+            if (!newRow[index]) {
+              newRow[index] = today;
+            }
+          });
+          return newRow;
+        });
+        return { ...table, rows: newRows };
+      }
+    }
+    return table;
+  });
+};
+
+
 export function TableViewer({ initialData, onReset, fileName }: TableViewerProps) {
-  const [editedData, setEditedData] = useState<TableData[]>(initialData.tables);
+  const [editedData, setEditedData] = useState<TableData[]>(() => initializeTableData(initialData.tables));
   const [hiddenColumns, setHiddenColumns] = useState<Record<number, Set<string>>>(() => getDefaultHiddenColumns(initialData.tables));
 
   const handleCellChange = (tableIndex: number, rowIndex: number, colIndex: number, value: string) => {
@@ -158,23 +189,17 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const visibleTables = useMemo(() => {
     return editedData.map((table, tableIndex) => {
       const hidden = hiddenColumns[tableIndex] || new Set();
-      
       const originalHeaders = table.headers;
       const visibleHeaders = originalHeaders.filter(h => !hidden.has(h));
-
       const headerIndexMap: Record<string, number> = {};
       originalHeaders.forEach((h, i) => {
         headerIndexMap[h] = i;
       });
-      
-      const visibleRows = table.rows.map(row => 
-        visibleHeaders.map(header => row[headerIndexMap[header]])
-      );
-
       return {
         originalHeaders: originalHeaders,
         headers: visibleHeaders,
-        rows: visibleRows,
+        rows: table.rows,
+        headerIndexMap,
       };
     });
   }, [editedData, hiddenColumns]);
@@ -221,13 +246,13 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         </div>
       </CardHeader>
       <CardContent className="space-y-8">
-        {editedData.map((table, tableIndex) => {
-          const currentVisibleTable = visibleTables[tableIndex];
+        {visibleTables.map((table, tableIndex) => {
+          const tableTitle = tableTitles[tableIndex] || `Table ${tableIndex + 1}`;
           
           return (
             <div key={`table-container-${tableIndex}`} className="p-4 border rounded-lg">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                  <h3 className="text-lg font-semibold">{tableTitles[tableIndex] || `Table ${tableIndex + 1}`}</h3>
+                  <h3 className="text-lg font-semibold">{tableTitle}</h3>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline">
@@ -236,7 +261,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      {table.headers.map(header => (
+                      {table.originalHeaders.map(header => (
                         <DropdownMenuCheckboxItem
                           key={header}
                           checked={!hiddenColumns[tableIndex]?.has(header)}
@@ -252,23 +277,49 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      {currentVisibleTable.headers.map((header, i) => (
+                      {table.headers.map((header, i) => (
                         <TableHead key={`head-${tableIndex}-${i}`}>{header}</TableHead>
                       ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {currentVisibleTable.rows.map((row, rowIndex) => (
+                    {table.rows.map((row, rowIndex) => (
                       <TableRow key={`row-${tableIndex}-${rowIndex}`}>
-                        {row.map((cell, colIndex) => {
-                          const originalColName = currentVisibleTable.headers[colIndex];
-                          const originalColIndex = table.headers.indexOf(originalColName);
+                        {table.headers.map((header) => {
+                          const colIndex = table.headerIndexMap[header];
+                          const cellValue = row[colIndex];
+                          const lowerHeader = header.toLowerCase();
+
+                          if ((tableTitle === "Engineering" || tableTitle === "Execution") && lowerHeader.includes('date')) {
+                            return (
+                              <DatePickerCell
+                                key={`cell-${tableIndex}-${rowIndex}-${colIndex}`}
+                                value={cellValue}
+                                onValueChange={(newValue) => {
+                                  handleCellChange(tableIndex, rowIndex, colIndex, newValue)
+                                }}
+                              />
+                            )
+                          }
+
+                          if (tableTitle === "Procurement" && lowerHeader === 'procurement status') {
+                             return (
+                                <StatusDropdownCell
+                                  key={`cell-${tableIndex}-${rowIndex}-${colIndex}`}
+                                  value={cellValue}
+                                  onValueChange={(newValue) => {
+                                    handleCellChange(tableIndex, rowIndex, colIndex, newValue)
+                                  }}
+                                />
+                             )
+                          }
+
                           return (
                            <EditableCell
-                            key={`cell-${tableIndex}-${rowIndex}-${originalColIndex}`}
-                            value={cell}
+                            key={`cell-${tableIndex}-${rowIndex}-${colIndex}`}
+                            value={cellValue}
                             onValueChange={(newValue) => {
-                              handleCellChange(tableIndex, rowIndex, originalColIndex, newValue)
+                              handleCellChange(tableIndex, rowIndex, colIndex, newValue)
                             }}
                           />
                         )})}
