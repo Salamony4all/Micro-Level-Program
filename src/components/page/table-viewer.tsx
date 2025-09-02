@@ -103,8 +103,8 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   dateColumnIndices.forEach(index => {
                     // Only set a default date if the cell is empty
                     if (!newRow[index]) {
-                      const today = format(new Date(), 'yyyy-MM-dd');
-                      newRow[index] = today;
+                      const today = new Date();
+                      newRow[index] = format(today, 'yyyy-MM-dd');
                     }
                   });
                   return newRow;
@@ -273,36 +273,43 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   head: [visibleHeaders],
                   body: visibleRows,
                   startY: startY,
-                  didDrawCell: function (data: any) {
-                    if (table.title.toLowerCase() === 'procurement' && data.column.dataKey === visibleHeaders.length - 1) {
-                        const cellText = data.cell.text[0] || '';
-                        let textColor = '#000000'; // Default to black
-                        
-                        if (cellText.includes('Completed')) {
-                            textColor = '#28a745'; // Green
-                        } else if (cellText.includes('Pending')) {
-                            textColor = '#ffc107'; // Yellow
-                        } else if (cellText.includes('In Progress')) {
-                            textColor = '#fd7e14'; // Orange
-                        } else if (cellText.includes('Delayed')) {
-                            textColor = '#dc3545'; // Red
-                        }
-
-                        doc.setFont('helvetica', 'bold');
-                        doc.setTextColor(textColor);
+                  willDrawCell: function (data: any) {
+                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && data.column.dataKey === visibleHeaders.length - 1;
+                    if (isProcurementStatusColumn) {
+                      data.cell.styles.fontStyle = 'bold';
                     }
                   },
-                  willDrawCell: function(data: any) {
-                      doc.setFont('helvetica', 'normal');
-                      doc.setTextColor('#000000');
-                  }
+                  didDrawCell: function (data: any) {
+                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && data.column.dataKey === visibleHeaders.length - 1;
+                    if (isProcurementStatusColumn) {
+                      const cellText = data.cell.text[0] || '';
+                      let textColor = '#000000'; // Default black
+
+                      if (cellText.includes('Completed')) {
+                          textColor = '#28a745'; // Green
+                      } else if (cellText.includes('Pending')) {
+                          textColor = '#ffc107'; // Yellow
+                      } else if (cellText.includes('In Progress')) {
+                          textColor = '#fd7e14'; // Orange
+                      } else if (cellText.includes('Delayed')) {
+                          textColor = '#dc3545'; // Red
+                      }
+                      
+                      doc.setTextColor(textColor);
+                      // The text is already drawn by the library, we are just changing the color for subsequent text
+                      // To be sure the text is drawn with color, we can re-draw it.
+                      doc.text(cellText, data.cell.x + data.cell.padding('left'), data.cell.y + data.cell.height / 2, {
+                        baseline: 'middle'
+                      });
+                    }
+                  },
               });
 
               startY = (doc as any).lastAutoTable.finalY + 15;
         });
     });
     
-    doc.save(`${cleanFileName}_all_tables.pdf`);
+    doc.save(`${getCleanFileName()}_all_tables.pdf`);
   };
   
   if (editedData.length === 0) {
@@ -476,3 +483,5 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     </Card>
   );
 }
+
+    
