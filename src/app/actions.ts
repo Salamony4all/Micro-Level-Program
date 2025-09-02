@@ -9,8 +9,8 @@ type ActionResult =
 export async function extractTables(input: ExtractTablesInput): Promise<ActionResult> {
   try {
     const result = await extractTablesFlow(input);
-    if (!result || !result.tables) {
-        return { success: true, data: { tables: [] } };
+    if (!result || !result.locations) {
+        return { success: true, data: { locations: [] } };
     }
     return { success: true, data: result };
   } catch (error) {

@@ -21,101 +21,114 @@ interface TableViewerProps {
 }
 
 type TableData = {
+  title: string;
   headers: string[];
   rows: string[][];
 };
 
-const tableTitles = ["Engineering", "Procurement", "Execution"];
+type LocationData = {
+    location: string;
+    tables: TableData[];
+}
 
-const getDefaultHiddenColumns = (tables: TableData[]): Record<number, Set<string>> => {
-  const hidden: Record<number, Set<string>> = {};
+const tableTitlesOrder = ["Engineering", "Procurement", "Execution"];
 
-  tables.forEach((table, index) => {
-    hidden[index] = new Set<string>();
-    const title = tableTitles[index];
-    
-    // Function to check if a header should be hidden
-    const shouldHide = (header: string): boolean => {
-      const lowerHeader = header.toLowerCase();
-      if (lowerHeader.includes("activity")) {
-        return false;
-      }
 
-      if (title === "Engineering") {
-        return !lowerHeader.includes("shop drawing");
-      }
-      if (title === "Procurement") {
-        return lowerHeader !== "procurement status";
-      }
-      if (title === "Execution") {
-        return !lowerHeader.includes("start") && !lowerHeader.includes("finish");
-      }
-      return true; // Hide by default if no specific rule matches
-    };
+const getDefaultHiddenColumns = (locations: LocationData[]): Record<string, Record<string, Set<string>>> => {
+  const hidden: Record<string, Record<string, Set<string>>> = {};
 
-    table.headers.forEach(header => {
-      if (shouldHide(header)) {
-        hidden[index].add(header);
-      }
+  locations.forEach(loc => {
+    hidden[loc.location] = {};
+    loc.tables.forEach(table => {
+      hidden[loc.location][table.title] = new Set<string>();
+      
+      const shouldHide = (header: string): boolean => {
+        const lowerHeader = header.toLowerCase();
+        if (lowerHeader.includes("activity")) {
+          return false;
+        }
+        
+        const lowerTitle = table.title.toLowerCase();
+
+        if (lowerTitle === "engineering") {
+          return !lowerHeader.includes("shop drawing");
+        }
+        if (lowerTitle === "procurement") {
+          return lowerHeader !== "procurement status";
+        }
+        if (lowerTitle === "execution") {
+          return !lowerHeader.includes("start") && !lowerHeader.includes("finish");
+        }
+        return true; 
+      };
+
+      table.headers.forEach(header => {
+        if (shouldHide(header)) {
+          hidden[loc.location][table.title].add(header);
+        }
+      });
     });
   });
 
   return hidden;
 };
 
-const initializeTableData = (tables: TableData[]): TableData[] => {
+const initializeTableData = (locations: LocationData[]): LocationData[] => {
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  return tables.map((table, tableIndex) => {
-    const title = tableTitles[tableIndex];
-    if (title === "Engineering" || title === "Execution") {
-      const dateColumnIndices = table.headers
-        .map((h, i) => (h.toLowerCase().includes('date') ? i : -1))
-        .filter(i => i !== -1);
-      
-      if (dateColumnIndices.length > 0) {
-        const newRows = table.rows.map(row => {
-          const newRow = [...row];
-          dateColumnIndices.forEach(index => {
-            if (!newRow[index]) {
-              newRow[index] = today;
+  return locations.map(loc => ({
+    ...loc,
+    tables: loc.tables.map(table => {
+        const lowerTitle = table.title.toLowerCase();
+        if (lowerTitle === "engineering" || lowerTitle === "execution") {
+            const dateColumnIndices = table.headers
+            .map((h, i) => (h.toLowerCase().includes('date') ? i : -1))
+            .filter(i => i !== -1);
+        
+            if (dateColumnIndices.length > 0) {
+            const newRows = table.rows.map(row => {
+                const newRow = [...row];
+                dateColumnIndices.forEach(index => {
+                if (!newRow[index]) {
+                    newRow[index] = today;
+                }
+                });
+                return newRow;
+            });
+            return { ...table, rows: newRows };
             }
-          });
-          return newRow;
-        });
-        return { ...table, rows: newRows };
-      }
-    }
-    return table;
-  });
+        }
+        return table;
+    })
+  }));
 };
 
 
 export function TableViewer({ initialData, onReset, fileName }: TableViewerProps) {
-  const [editedData, setEditedData] = useState<TableData[]>(() => initializeTableData(initialData.tables));
-  const [hiddenColumns, setHiddenColumns] = useState<Record<number, Set<string>>>(() => getDefaultHiddenColumns(initialData.tables));
+  const [editedData, setEditedData] = useState<LocationData[]>(() => initializeTableData(initialData.locations));
+  const [hiddenColumns, setHiddenColumns] = useState<Record<string, Record<string, Set<string>>>>(() => getDefaultHiddenColumns(initialData.locations));
 
-  const handleCellChange = (tableIndex: number, rowIndex: number, colIndex: number, value: string) => {
+  const handleCellChange = (locIndex: number, tableIndex: number, rowIndex: number, colIndex: number, value: string) => {
     setEditedData(prevData => {
       const newData = JSON.parse(JSON.stringify(prevData));
-      newData[tableIndex].rows[rowIndex][colIndex] = value;
+      newData[locIndex].tables[tableIndex].rows[rowIndex][colIndex] = value;
       return newData;
     });
   };
 
-  const handleColumnToggle = (tableIndex: number, header: string) => {
+  const handleColumnToggle = (location: string, tableTitle: string, header: string) => {
     setHiddenColumns(prev => {
       const newHidden = { ...prev };
-      if (!newHidden[tableIndex]) {
-        newHidden[tableIndex] = new Set();
-      }
-      const newSet = new Set(newHidden[tableIndex]);
+      if (!newHidden[location]) newHidden[location] = {};
+      if (!newHidden[location][tableTitle]) newHidden[location][tableTitle] = new Set();
+      
+      const newSet = new Set(newHidden[location][tableTitle]);
       if (newSet.has(header)) {
         newSet.delete(header);
       } else {
         newSet.add(header);
       }
-      newHidden[tableIndex] = newSet;
+      newHidden[location][tableTitle] = newSet;
       return newHidden;
     });
   };
@@ -125,21 +138,20 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const downloadAllAsCsv = () => {
     let csvContent = '';
     
-    editedData.forEach((table, tableIndex) => {
-      const hidden = hiddenColumns[tableIndex] || new Set();
-  
-      const visibleHeaders = table.headers.filter(h => !hidden.has(h));
-      const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
-      
-      const visibleRows = table.rows.map(row => 
-        visibleHeaderIndices.map(index => row[index])
-      );
+    editedData.forEach((loc) => {
+      csvContent += `Location: ${loc.location}\n\n`;
+      loc.tables.forEach(table => {
+        const hidden = hiddenColumns[loc.location]?.[table.title] || new Set();
+        const visibleHeaders = table.headers.filter(h => !hidden.has(h));
+        const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
+        const visibleRows = table.rows.map(row => visibleHeaderIndices.map(index => row[index]));
 
-      csvContent += `${tableTitles[tableIndex] || `Table ${tableIndex + 1}`}\n`;
-      csvContent += visibleHeaders.join(',') + '\n';
-      csvContent += visibleRows.map(row => 
-        row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-      ).join('\n') + '\n\n';
+        csvContent += `${table.title}\n`;
+        csvContent += visibleHeaders.join(',') + '\n';
+        csvContent += visibleRows.map(row => 
+          row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+        ).join('\n') + '\n\n';
+      });
     });
   
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -157,53 +169,47 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const downloadAllAsPdf = () => {
     const doc = new jsPDF();
     const cleanFileName = getCleanFileName();
-    
-    doc.setFontSize(20);
-    doc.text(`Tables from ${fileName}`, (doc.internal.pageSize.getWidth() / 2), 15, { align: 'center' });
+    let isFirstPage = true;
 
-    editedData.forEach((table, tableIndex) => {
-      if (tableIndex > 0) {
+    editedData.forEach((loc) => {
+      if (!isFirstPage) {
         doc.addPage();
       }
-      const hidden = hiddenColumns[tableIndex] || new Set();
-      const visibleHeaders = table.headers.filter(h => !hidden.has(h));
-      const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
-      const visibleRows = table.rows.map(row => 
-        visibleHeaderIndices.map(index => row[index])
-      );
+      isFirstPage = false;
+      
+      doc.setFontSize(20);
+      doc.text(`Location: ${loc.location}`, (doc.internal.pageSize.getWidth() / 2), 15, { align: 'center' });
 
-      (doc as any).autoTable({
-          head: [visibleHeaders],
-          body: visibleRows,
-          startY: 30,
-          didDrawPage: function (data: any) {
-              doc.setFontSize(16);
-              doc.text(tableTitles[tableIndex] || `Table ${tableIndex + 1}`, data.settings.margin.left, 25);
-          }
+      let startY = 30;
+
+      loc.tables.forEach((table, tableIndex) => {
+        const hidden = hiddenColumns[loc.location]?.[table.title] || new Set();
+        const visibleHeaders = table.headers.filter(h => !hidden.has(h));
+        const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
+        const visibleRows = table.rows.map(row => visibleHeaderIndices.map(index => row[index]));
+
+        if (startY > 250) { // Check if new page is needed
+            doc.addPage();
+            startY = 30;
+        }
+
+        (doc as any).autoTable({
+            head: [visibleHeaders],
+            body: visibleRows,
+            startY: startY,
+            didDrawPage: function (data: any) {
+                doc.setFontSize(16);
+                doc.text(table.title, data.settings.margin.left, startY - 5);
+            }
+        });
+
+        startY = (doc as any).lastAutoTable.finalY + 15;
       });
     });
     
-    doc.save(`${getCleanFileName()}_all_tables.pdf`);
+    doc.save(`${cleanFileName()}_all_tables.pdf`);
   };
   
-  const visibleTables = useMemo(() => {
-    return editedData.map((table, tableIndex) => {
-      const hidden = hiddenColumns[tableIndex] || new Set();
-      const originalHeaders = table.headers;
-      const visibleHeaders = originalHeaders.filter(h => !hidden.has(h));
-      const headerIndexMap: Record<string, number> = {};
-      originalHeaders.forEach((h, i) => {
-        headerIndexMap[h] = i;
-      });
-      return {
-        originalHeaders: originalHeaders,
-        headers: visibleHeaders,
-        rows: table.rows,
-        headerIndexMap,
-      };
-    });
-  }, [editedData, hiddenColumns]);
-
   if (editedData.length === 0) {
       return (
         <Card className="w-full max-w-4xl mx-auto shadow-lg">
@@ -246,91 +252,108 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         </div>
       </CardHeader>
       <CardContent className="space-y-8">
-        {visibleTables.map((table, tableIndex) => {
-          const tableTitle = tableTitles[tableIndex] || `Table ${tableIndex + 1}`;
-          
-          return (
-            <div key={`table-container-${tableIndex}`} className="p-4 border rounded-lg">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                  <h3 className="text-lg font-semibold">{tableTitle}</h3>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline">
-                        <ChevronsUpDown className="mr-2 h-4 w-4" />
-                        Show/Hide Columns
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      {table.originalHeaders.map(header => (
-                        <DropdownMenuCheckboxItem
-                          key={header}
-                          checked={!hiddenColumns[tableIndex]?.has(header)}
-                          onCheckedChange={() => handleColumnToggle(tableIndex, header)}
-                        >
-                          {header}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              <div className="overflow-x-auto relative">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {table.headers.map((header, i) => (
-                        <TableHead key={`head-${tableIndex}-${i}`}>{header}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {table.rows.map((row, rowIndex) => (
-                      <TableRow key={`row-${tableIndex}-${rowIndex}`}>
-                        {table.headers.map((header) => {
-                          const colIndex = table.headerIndexMap[header];
-                          const cellValue = row[colIndex];
-                          const lowerHeader = header.toLowerCase();
+        {editedData.map((loc, locIndex) => (
+          <Card key={`loc-${locIndex}`} className="p-4 border rounded-lg">
+            <CardHeader>
+              <CardTitle className="text-xl">Location / Area / Zone: {loc.location}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {loc.tables
+                .sort((a, b) => tableTitlesOrder.indexOf(a.title) - tableTitlesOrder.indexOf(b.title))
+                .map((table, tableIndex) => {
+                  const hidden = hiddenColumns[loc.location]?.[table.title] || new Set();
+                  const visibleHeaders = table.headers.filter(h => !hidden.has(h));
+                  const headerIndexMap: Record<string, number> = {};
+                  table.headers.forEach((h, i) => {
+                      headerIndexMap[h] = i;
+                  });
 
-                          if ((tableTitle === "Engineering" || tableTitle === "Execution") && lowerHeader.includes('date')) {
-                            return (
-                              <DatePickerCell
-                                key={`cell-${tableIndex}-${rowIndex}-${colIndex}`}
-                                value={cellValue}
-                                onValueChange={(newValue) => {
-                                  handleCellChange(tableIndex, rowIndex, colIndex, newValue)
-                                }}
-                              />
-                            )
-                          }
+                  return (
+                    <div key={`table-container-${locIndex}-${tableIndex}`} className="p-4 border rounded-lg">
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                          <h3 className="text-lg font-semibold">{table.title}</h3>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline">
+                                <ChevronsUpDown className="mr-2 h-4 w-4" />
+                                Show/Hide Columns
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              {table.headers.map(header => (
+                                <DropdownMenuCheckboxItem
+                                  key={header}
+                                  checked={!hidden.has(header)}
+                                  onCheckedChange={() => handleColumnToggle(loc.location, table.title, header)}
+                                >
+                                  {header}
+                                </DropdownMenuCheckboxItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      <div className="overflow-x-auto relative">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {visibleHeaders.map((header, i) => (
+                                <TableHead key={`head-${locIndex}-${tableIndex}-${i}`}>{header}</TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {table.rows.map((row, rowIndex) => (
+                              <TableRow key={`row-${locIndex}-${tableIndex}-${rowIndex}`}>
+                                {visibleHeaders.map((header) => {
+                                  const colIndex = headerIndexMap[header];
+                                  const cellValue = row[colIndex];
+                                  const lowerHeader = header.toLowerCase();
+                                  const lowerTableTitle = table.title.toLowerCase();
 
-                          if (tableTitle === "Procurement" && lowerHeader === 'procurement status') {
-                             return (
-                                <StatusDropdownCell
-                                  key={`cell-${tableIndex}-${rowIndex}-${colIndex}`}
-                                  value={cellValue}
-                                  onValueChange={(newValue) => {
-                                    handleCellChange(tableIndex, rowIndex, colIndex, newValue)
-                                  }}
-                                />
-                             )
-                          }
+                                  if ((lowerTableTitle === "engineering" || lowerTableTitle === "execution") && lowerHeader.includes('date')) {
+                                    return (
+                                      <DatePickerCell
+                                        key={`cell-${locIndex}-${tableIndex}-${rowIndex}-${colIndex}`}
+                                        value={cellValue}
+                                        onValueChange={(newValue) => {
+                                          handleCellChange(locIndex, tableIndex, rowIndex, colIndex, newValue)
+                                        }}
+                                      />
+                                    )
+                                  }
 
-                          return (
-                           <EditableCell
-                            key={`cell-${tableIndex}-${rowIndex}-${colIndex}`}
-                            value={cellValue}
-                            onValueChange={(newValue) => {
-                              handleCellChange(tableIndex, rowIndex, colIndex, newValue)
-                            }}
-                          />
-                        )})}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          )
-        })}
+                                  if (lowerTableTitle === "procurement" && lowerHeader === 'procurement status') {
+                                     return (
+                                        <StatusDropdownCell
+                                          key={`cell-${locIndex}-${tableIndex}-${rowIndex}-${colIndex}`}
+                                          value={cellValue}
+                                          onValueChange={(newValue) => {
+                                            handleCellChange(locIndex, tableIndex, rowIndex, colIndex, newValue)
+                                          }}
+                                        />
+                                     )
+                                  }
+
+                                  return (
+                                   <EditableCell
+                                    key={`cell-${locIndex}-${tableIndex}-${rowIndex}-${colIndex}`}
+                                    value={cellValue}
+                                    onValue-change={(newValue) => {
+                                      handleCellChange(locIndex, tableIndex, rowIndex, colIndex, newValue)
+                                    }}
+                                  />
+                                )})}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  )
+              })}
+            </CardContent>
+          </Card>
+        ))}
       </CardContent>
     </Card>
   );

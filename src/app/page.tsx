@@ -34,11 +34,11 @@ export default function Home() {
         const result = await extractTablesAction({ fileDataUri, fileType });
         
         if (result.success && result.data) {
-          if (result.data.tables.length === 0) {
+          if (result.data.locations.length === 0) {
              toast({
               variant: "default",
               title: "No Micro Level Program Found",
-              description: "The AI couldn't find any tables in the uploaded file.",
+              description: "The AI couldn't find any locations or tables in the uploaded file.",
             });
           }
           setExtractedData(result.data);
