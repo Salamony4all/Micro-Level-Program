@@ -172,9 +172,6 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     let startY = 15;
 
     editedData.forEach((loc, locIndex) => {
-      if (locIndex > 0) {
-        startY = (doc as any).lastAutoTable.finalY + 15;
-      }
 
       doc.setFontSize(20);
       doc.text(`Location: ${loc.location}`, (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
@@ -186,20 +183,14 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
         const visibleRows = table.rows.map(row => visibleHeaderIndices.map(index => String(row[index])));
         
-        if (startY > 250) { // Check if new page is needed for content overflow
-            doc.addPage();
-            startY = 15;
-        }
+        doc.setFontSize(16);
+        doc.text(table.title, 14, startY);
+        startY += 5;
 
         (doc as any).autoTable({
             head: [visibleHeaders],
             body: visibleRows,
             startY: startY,
-            didDrawPage: function (data: any) {
-                const tableStartY = data.cursor.y - (data.row.height * data.table.body.length) - data.table.headerRow.height;
-                doc.setFontSize(16);
-                doc.text(table.title, data.settings.margin.left, tableStartY - 5);
-            }
         });
 
         startY = (doc as any).lastAutoTable.finalY + 10;
