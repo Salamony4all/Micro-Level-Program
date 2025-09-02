@@ -83,9 +83,9 @@ const initializeTableData = (locations: LocationData[]): LocationData[] => {
 
 
 export function TableViewer({ initialData, onReset, fileName }: TableViewerProps) {
-  const [editedData, setEditedData] = useState<LocationData[]>(() => initializeTableData(initialData.locations));
-  const [hiddenColumns, setHiddenColumns] = useState<Record<string, Record<string, Set<string>>>>(() => getDefaultHiddenColumns(initialData.locations));
-  const [editedLocations, setEditedLocations] = useState<string[]>(() => initialData.locations.map(l => l.location));
+  const [editedData, setEditedData] = useState<LocationData[]>([]);
+  const [hiddenColumns, setHiddenColumns] = useState<Record<string, Record<string, Set<string>>>>({});
+  const [editedLocations, setEditedLocations] = useState<string[]>([]);
   
   useEffect(() => {
     const dataWithDates = initialData.locations.map(loc => ({
@@ -116,7 +116,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
       })
     }));
 
-    setEditedData(dataWithDates);
+    setEditedData(initializeTableData(dataWithDates));
     setHiddenColumns(getDefaultHiddenColumns(initialData.locations));
     setEditedLocations(initialData.locations.map(l => l.location));
   }, [initialData]);
@@ -277,12 +277,15 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                     const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && data.column.dataKey === visibleHeaders.length - 1;
                     if (isProcurementStatusColumn) {
                       data.cell.styles.fontStyle = 'bold';
+                      data.cell.text = ''; 
                     }
                   },
                   didDrawCell: function (data: any) {
                     const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && data.column.dataKey === visibleHeaders.length - 1;
-                    if (isProcurementStatusColumn) {
-                      const cellText = data.cell.text[0] || '';
+                    if (isProcurementStatusColumn && data.cell.raw) {
+                      const rawText = String(data.cell.raw);
+                      const cellText = rawText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
+
                       let textColor = '#000000'; // Default black
 
                       if (cellText.includes('Completed')) {
@@ -296,8 +299,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                       }
                       
                       doc.setTextColor(textColor);
-                      // The text is already drawn by the library, we are just changing the color for subsequent text
-                      // To be sure the text is drawn with color, we can re-draw it.
+                      doc.setFont('helvetica', 'bold');
                       doc.text(cellText, data.cell.x + data.cell.padding('left'), data.cell.y + data.cell.height / 2, {
                         baseline: 'middle'
                       });
