@@ -100,11 +100,12 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
               if (dateColumnIndices.length > 0) {
               const newRows = table.rows.map(row => {
                   const newRow = [...row];
-                  const today = format(new Date(), 'yyyy-MM-dd');
                   dateColumnIndices.forEach(index => {
-                  if (!newRow[index]) {
+                    // Only set a default date if the cell is empty
+                    if (!newRow[index]) {
+                      const today = format(new Date(), 'yyyy-MM-dd');
                       newRow[index] = today;
-                  }
+                    }
                   });
                   return newRow;
               });
@@ -242,6 +243,8 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     
     let startY = 15;
 
+    doc.setFont('helvetica', 'bold');
+
     editedData.forEach((loc, locIndex) => {
         const originalLocation = initialData.locations[locIndex];
 
@@ -252,16 +255,16 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         loc.tables
           .sort((a, b) => tableTitlesOrder.indexOf(a.title) - tableTitlesOrder.indexOf(b.title))
           .forEach((table) => {
-              const hidden = hiddenColumns[originalLocation]?.[table.title] || new Set();
-              const visibleHeaders = table.headers.filter(h => !hidden.has(h));
-              const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
-              const visibleRows = table.rows.map(row => visibleHeaderIndices.map(index => String(row[index] || '')));
-              
               if (startY + 20 > doc.internal.pageSize.getHeight()) {
                   doc.addPage();
                   startY = 15;
               }
 
+              const hidden = hiddenColumns[originalLocation.location]?.[table.title] || new Set();
+              const visibleHeaders = table.headers.filter(h => !hidden.has(h));
+              const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
+              const visibleRows = table.rows.map(row => visibleHeaderIndices.map(index => String(row[index] || '')));
+              
               doc.setFontSize(16);
               doc.text(table.title, 14, startY);
               startY += 7;
@@ -270,6 +273,29 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   head: [visibleHeaders],
                   body: visibleRows,
                   startY: startY,
+                  didDrawCell: function (data: any) {
+                    if (table.title.toLowerCase() === 'procurement' && data.column.dataKey === visibleHeaders.length - 1) {
+                        const cellText = data.cell.text[0] || '';
+                        let textColor = '#000000'; // Default to black
+                        
+                        if (cellText.includes('Completed')) {
+                            textColor = '#28a745'; // Green
+                        } else if (cellText.includes('Pending')) {
+                            textColor = '#ffc107'; // Yellow
+                        } else if (cellText.includes('In Progress')) {
+                            textColor = '#fd7e14'; // Orange
+                        } else if (cellText.includes('Delayed')) {
+                            textColor = '#dc3545'; // Red
+                        }
+
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(textColor);
+                    }
+                  },
+                  willDrawCell: function(data: any) {
+                      doc.setFont('helvetica', 'normal');
+                      doc.setTextColor('#000000');
+                  }
               });
 
               startY = (doc as any).lastAutoTable.finalY + 15;
