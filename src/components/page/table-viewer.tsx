@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMe
 import { EditableCell } from './editable-cell';
 import { DatePickerCell } from './date-picker-cell';
 import { StatusDropdownCell } from './status-dropdown-cell';
+import { ProjectDetails, type ProjectDetailsData } from './project-details';
 import { Download, ChevronsUpDown, RotateCcw, FileText, Trash2, PlusCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -41,17 +42,13 @@ const getDefaultHiddenColumns = (locations: LocationData[]): Record<string, Reco
   locations.forEach(loc => {
     hidden[loc.location] = {};
     loc.tables.forEach(table => {
-      hidden[loc.location][table.title] = new Set<string>();
+      const newSet = new Set<string>();
       
       const shouldHide = (header: string): boolean => {
         const lowerHeader = header.toLowerCase();
 
         // Always show "Main Activity" and "Remarks"
-        if (lowerHeader.includes("main activity") || lowerHeader.includes("remarks")) {
-          return false;
-        }
-
-        if (lowerHeader.includes("activity/item")) {
+        if (lowerHeader.includes("main activity") || lowerHeader.includes("remarks") || lowerHeader.includes("activity/item")) {
           return false;
         }
         
@@ -71,9 +68,10 @@ const getDefaultHiddenColumns = (locations: LocationData[]): Record<string, Reco
 
       table.headers.forEach(header => {
         if (shouldHide(header)) {
-          hidden[loc.location][table.title].add(header);
+          newSet.add(header);
         }
       });
+      hidden[loc.location][table.title] = newSet;
     });
   });
 
@@ -92,6 +90,13 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const [editedData, setEditedData] = useState<LocationData[]>([]);
   const [hiddenColumns, setHiddenColumns] = useState<Record<string, Record<string, Set<string>>>>({});
   const [editedLocations, setEditedLocations] = useState<string[]>([]);
+  const [projectDetails, setProjectDetails] = useState<ProjectDetailsData>({
+    date: format(new Date(), 'yyyy-MM-dd'),
+    referenceNumber: '',
+    projectName: '',
+    clientName: '',
+    clientContactPerson: '',
+  });
   
   useEffect(() => {
     const dataWithDates = initialData.locations.map(loc => ({
@@ -153,7 +158,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
 
   const handleColumnToggle = (location: string, tableTitle: string, header: string) => {
     const lowerHeader = header.toLowerCase();
-    if (lowerHeader.includes("main activity") || lowerHeader.includes("remarks")) {
+    if (lowerHeader.includes("main activity") || lowerHeader.includes("remarks") || lowerHeader.includes("activity/item")) {
       return;
     }
     
@@ -254,12 +259,31 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     const doc = new jsPDF();
     const cleanFileName = getCleanFileName();
     
-    let startY = 25;
+    let startY = 15;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(24);
-    doc.text("Alshaya Enterprises ™", (doc.internal.pageSize.getWidth() / 2), 15, { align: 'center' });
+    doc.text("Alshaya Enterprises ™", (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
+    startY += 15;
+
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    
+    const details = [
+        [`Date: ${format(new Date(projectDetails.date), 'PPP')}`, `Reference No: ${projectDetails.referenceNumber}`],
+        [`Project Name: ${projectDetails.projectName}`, `Client Name: ${projectDetails.clientName}`],
+        [`Client Contact Person: ${projectDetails.clientContactPerson}`,'']
+    ];
+
+    (doc as any).autoTable({
+        body: details,
+        startY: startY,
+        theme: 'plain',
+        styles: { fontSize: 10, cellPadding: 1 },
+        columnStyles: { 0: { cellWidth: 95 }, 1: { cellWidth: 95 } },
+    });
+
+    startY = (doc as any).lastAutoTable.finalY + 10;
 
     editedData.forEach((loc, locIndex) => {
         const originalLocation = initialData.locations[locIndex];
@@ -362,170 +386,171 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   }
 
   return (
-    <Card className="w-full max-w-7xl mx-auto shadow-lg">
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-                <CardTitle className="text-3xl">Micro Level Program</CardTitle>
-                <CardDescription>Generated Micro Level Program from '{fileName}'. You can edit the data below.</CardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={onReset} variant="outline">
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Reset Data
-              </Button>
-              <Button onClick={downloadAllAsPdf} variant="outline">
-                <FileText className="mr-2 h-4 w-4" />
-                Download as PDF
-              </Button>
-              <Button onClick={downloadAllAsCsv} className="bg-accent hover:bg-accent/90">
-                <Download className="mr-2 h-4 w-4" />
-                Download as CSV
-              </Button>
-            </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-8">
-        {editedData.map((loc, locIndex) => {
-          const originalLocation = initialData.locations[locIndex];
-          const initialTableData = initialData.locations[locIndex].tables;
-          
-          return (
-            <Card key={`loc-${locIndex}`} className="p-4 border rounded-lg">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-semibold">Location / Area / Zone:</span>
-                  <Input
-                      type="text"
-                      defaultValue={editedLocations[locIndex]}
-                      onBlur={(e) => handleLocationChange(e.target.value, locIndex)}
-                      className="text-xl font-semibold border-0 border-b-2 rounded-none shadow-none focus-visible:ring-0 focus:border-primary"
-                    />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {loc.tables
-                  .sort((a, b) => tableTitlesOrder.indexOf(a.title) - tableTitlesOrder.indexOf(b.title))
-                  .map((table, tableOrderIndex) => {
-                    const hidden = hiddenColumns[originalLocation.location]?.[table.title] || new Set();
-                    const visibleHeaders = table.headers.filter(h => !hidden.has(h));
-                    const headerIndexMap: Record<string, number> = {};
-                    table.headers.forEach((h, i) => {
-                        headerIndexMap[h] = i;
-                    });
-                    const initialRowsForTable = initialTableData.find(t => t.title === table.title)?.rows.length || 0;
-                    
-                    return (
-                      <div key={`table-container-${locIndex}-${table.title}`} className="p-4 border rounded-lg">
-                          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                            <h3 className="text-lg font-semibold">{table.title}</h3>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                  <ChevronsUpDown className="mr-2 h-4 w-4" />
-                                  Show/Hide Columns
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                {table.headers.map(header => (
-                                  <DropdownMenuCheckboxItem
-                                    key={header}
-                                    checked={!hidden.has(header)}
-                                    onCheckedChange={() => handleColumnToggle(originalLocation.location, table.title, header)}
-                                    disabled={header.toLowerCase().includes("main activity") || header.toLowerCase().includes("remarks")}
-                                  >
-                                    {header}
-                                  </DropdownMenuCheckboxItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        <div className="overflow-x-auto relative">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                {visibleHeaders.map((header, i) => (
-                                  <TableHead key={`head-${locIndex}-${table.title}-${i}`}>{header}</TableHead>
-                                ))}
-                                <TableHead>Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {table.rows.map((row, rowIndex) => (
-                                <TableRow key={`row-${locIndex}-${table.title}-${rowIndex}`}>
-                                  {visibleHeaders.map((header) => {
-                                    const colIndex = headerIndexMap[header];
-                                    const cellValue = row[colIndex] || '';
-                                    const lowerHeader = header.toLowerCase();
-                                    const lowerTableTitle = table.title.toLowerCase();
+    <>
+      <ProjectDetails data={projectDetails} onDataChange={setProjectDetails} />
+      <Card className="w-full max-w-7xl mx-auto shadow-lg mt-8">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                  <CardTitle className="text-3xl">Micro Level Program</CardTitle>
+                  <CardDescription>Generated Micro Level Program from '{fileName}'. You can edit the data below.</CardDescription>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={onReset} variant="outline">
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Reset Data
+                </Button>
+                <Button onClick={downloadAllAsPdf} variant="outline">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Download as PDF
+                </Button>
+                <Button onClick={downloadAllAsCsv} className="bg-accent hover:bg-accent/90">
+                  <Download className="mr-2 h-4 w-4" />
+                  Download as CSV
+                </Button>
+              </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-8">
+          {editedData.map((loc, locIndex) => {
+            const originalLocation = initialData.locations[locIndex];
+            const initialTableData = initialData.locations[locIndex].tables;
+            const initialRowsForLocation = initialTableData.find(t => t.title === "Engineering")?.rows.length || 0;
 
-                                    if ((lowerTableTitle === "engineering" || lowerTableTitle === "execution") && lowerHeader.includes('date')) {
-                                      return (
-                                        <DatePickerCell
-                                          key={`cell-${locIndex}-${table.title}-${rowIndex}-${colIndex}`}
-                                          value={cellValue}
-                                          onValueChange={(newValue) => {
-                                            handleCellChange(locIndex, tableOrderIndex, rowIndex, colIndex, newValue)
-                                          }}
-                                        />
-                                      )
-                                    }
+            return (
+              <Card key={`loc-${locIndex}`} className="p-4 border rounded-lg">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-semibold">Location / Area / Zone:</span>
+                    <Input
+                        type="text"
+                        defaultValue={editedLocations[locIndex]}
+                        onBlur={(e) => handleLocationChange(e.target.value, locIndex)}
+                        className="text-xl font-semibold border-0 border-b-2 rounded-none shadow-none focus-visible:ring-0 focus:border-primary"
+                      />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {loc.tables
+                    .sort((a, b) => tableTitlesOrder.indexOf(a.title) - tableTitlesOrder.indexOf(b.title))
+                    .map((table, tableOrderIndex) => {
+                      const hidden = hiddenColumns[originalLocation.location]?.[table.title] || new Set();
+                      const visibleHeaders = table.headers.filter(h => !hidden.has(h));
+                      const headerIndexMap: Record<string, number> = {};
+                      table.headers.forEach((h, i) => {
+                          headerIndexMap[h] = i;
+                      });
+                      
+                      return (
+                        <div key={`table-container-${locIndex}-${table.title}`} className="p-4 border rounded-lg">
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                              <h3 className="text-lg font-semibold">{table.title}</h3>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="outline">
+                                    <ChevronsUpDown className="mr-2 h-4 w-4" />
+                                    Show/Hide Columns
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                  {table.headers.map(header => (
+                                    <DropdownMenuCheckboxItem
+                                      key={header}
+                                      checked={!hidden.has(header)}
+                                      onCheckedChange={() => handleColumnToggle(originalLocation.location, table.title, header)}
+                                      disabled={header.toLowerCase().includes("main activity") || header.toLowerCase().includes("remarks") || header.toLowerCase().includes("activity/item")}
+                                    >
+                                      {header}
+                                    </DropdownMenuCheckboxItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          <div className="overflow-x-auto relative">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  {visibleHeaders.map((header, i) => (
+                                    <TableHead key={`head-${locIndex}-${table.title}-${i}`}>{header}</TableHead>
+                                  ))}
+                                  <TableHead>Actions</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {table.rows.map((row, rowIndex) => (
+                                  <TableRow key={`row-${locIndex}-${table.title}-${rowIndex}`}>
+                                    {visibleHeaders.map((header) => {
+                                      const colIndex = headerIndexMap[header];
+                                      const cellValue = row[colIndex] || '';
+                                      const lowerHeader = header.toLowerCase();
+                                      const lowerTableTitle = table.title.toLowerCase();
 
-                                    if (lowerTableTitle === "procurement" && lowerHeader.includes('status')) {
-                                       return (
-                                          <StatusDropdownCell
+                                      if ((lowerTableTitle === "engineering" || lowerTableTitle === "execution") && lowerHeader.includes('date')) {
+                                        return (
+                                          <DatePickerCell
                                             key={`cell-${locIndex}-${table.title}-${rowIndex}-${colIndex}`}
                                             value={cellValue}
                                             onValueChange={(newValue) => {
                                               handleCellChange(locIndex, tableOrderIndex, rowIndex, colIndex, newValue)
                                             }}
                                           />
-                                       )
-                                    }
-                                    
-                                    if ((lowerHeader.includes('main activity') || lowerHeader.includes('activity/item')) && rowIndex < initialRowsForTable) {
-                                      return (
-                                        <TableCell key={`cell-${locIndex}-${table.title}-${rowIndex}-${colIndex}`}>
-                                          {cellValue}
-                                        </TableCell>
-                                      );
-                                    }
+                                        )
+                                      }
 
-                                    return (
-                                     <EditableCell
-                                      key={`cell-${locIndex}-${table.title}-${rowIndex}-${colIndex}`}
-                                      value={cellValue}
-                                      onValueChange={(newValue) => {
-                                        handleCellChange(locIndex, tableOrderIndex, rowIndex, colIndex, newValue)
-                                      }}
-                                    />
-                                  )})}
-                                  <TableCell>
-                                      <Button variant="ghost" size="icon" onClick={() => handleDeleteRow(locIndex, table.title, rowIndex)}>
-                                          <Trash2 className="h-4 w-4 text-destructive" />
-                                      </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                         <div className="flex justify-end mt-4">
-                              <Button variant="outline" onClick={() => handleAddRow(locIndex, table.title)}>
-                                  <PlusCircle className="mr-2 h-4 w-4" />
-                                  Add Row
-                              </Button>
+                                      if (lowerTableTitle === "procurement" && lowerHeader.includes('status')) {
+                                         return (
+                                            <StatusDropdownCell
+                                              key={`cell-${locIndex}-${table.title}-${rowIndex}-${colIndex}`}
+                                              value={cellValue}
+                                              onValueChange={(newValue) => {
+                                                handleCellChange(locIndex, tableOrderIndex, rowIndex, colIndex, newValue)
+                                              }}
+                                            />
+                                         )
+                                      }
+                                      
+                                      if ((lowerHeader.includes('main activity') || lowerHeader.includes('activity/item')) && rowIndex < initialRowsForLocation) {
+                                        return (
+                                          <TableCell key={`cell-${locIndex}-${table.title}-${rowIndex}-${colIndex}`}>
+                                            {cellValue}
+                                          </TableCell>
+                                        );
+                                      }
+
+                                      return (
+                                       <EditableCell
+                                        key={`cell-${locIndex}-${table.title}-${rowIndex}-${colIndex}`}
+                                        value={cellValue}
+                                        onValueChange={(newValue) => {
+                                          handleCellChange(locIndex, tableOrderIndex, rowIndex, colIndex, newValue)
+                                        }}
+                                      />
+                                    )})}
+                                    <TableCell>
+                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteRow(locIndex, table.title, rowIndex)}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
                           </div>
-                      </div>
-                    )
-                })}
-              </CardContent>
-            </Card>
-          )
-})}
-      </CardContent>
-    </Card>
+                           <div className="flex justify-end mt-4">
+                                <Button variant="outline" onClick={() => handleAddRow(locIndex, table.title)}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Add Row
+                                </Button>
+                            </div>
+                        </div>
+                      )
+                  })}
+                </CardContent>
+              </Card>
+            )
+  })}
+        </CardContent>
+      </Card>
+    </>
   );
 }
-
-    
