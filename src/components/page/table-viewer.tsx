@@ -45,7 +45,7 @@ const getDefaultHiddenColumns = (locations: LocationData[]): Record<string, Reco
       
       const shouldHide = (header: string): boolean => {
         const lowerHeader = header.toLowerCase();
-        if (lowerHeader.includes("activity")) {
+        if (lowerHeader.includes("activity/item")) {
           return false;
         }
         
@@ -75,32 +75,9 @@ const getDefaultHiddenColumns = (locations: LocationData[]): Record<string, Reco
 };
 
 const initializeTableData = (locations: LocationData[]): LocationData[] => {
-  const today = format(new Date(), 'yyyy-MM-dd');
-
   return locations.map(loc => ({
     ...loc,
-    tables: loc.tables.map(table => {
-        const lowerTitle = table.title.toLowerCase();
-        if (lowerTitle === "engineering" || lowerTitle === "execution") {
-            const dateColumnIndices = table.headers
-            .map((h, i) => (h.toLowerCase().includes('date') ? i : -1))
-            .filter(i => i !== -1);
-        
-            if (dateColumnIndices.length > 0) {
-            const newRows = table.rows.map(row => {
-                const newRow = [...row];
-                dateColumnIndices.forEach(index => {
-                if (!newRow[index]) {
-                    newRow[index] = today;
-                }
-                });
-                return newRow;
-            });
-            return { ...table, rows: newRows };
-            }
-        }
-        return table;
-    })
+    tables: loc.tables.map(table => ({...table}))
   }));
 };
 
@@ -111,7 +88,34 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const [editedLocations, setEditedLocations] = useState<string[]>(() => initialData.locations.map(l => l.location));
   
   useEffect(() => {
-    setEditedData(initializeTableData(initialData.locations));
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const dataWithDates = initialData.locations.map(loc => ({
+      ...loc,
+      tables: loc.tables.map(table => {
+          const lowerTitle = table.title.toLowerCase();
+          if (lowerTitle === "engineering" || lowerTitle === "execution") {
+              const dateColumnIndices = table.headers
+              .map((h, i) => (h.toLowerCase().includes('date') ? i : -1))
+              .filter(i => i !== -1);
+          
+              if (dateColumnIndices.length > 0) {
+              const newRows = table.rows.map(row => {
+                  const newRow = [...row];
+                  dateColumnIndices.forEach(index => {
+                  if (!newRow[index]) {
+                      newRow[index] = today;
+                  }
+                  });
+                  return newRow;
+              });
+              return { ...table, rows: newRows };
+              }
+          }
+          return table;
+      })
+    }));
+
+    setEditedData(dataWithDates);
     setHiddenColumns(getDefaultHiddenColumns(initialData.locations));
     setEditedLocations(initialData.locations.map(l => l.location));
   }, [initialData]);
@@ -240,9 +244,8 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     editedData.forEach((loc, locIndex) => {
         const originalLocation = initialData.locations[locIndex].location;
 
-        if (locIndex > 0) {
-            doc.addPage();
-            startY = 15;
+        if (locIndex > 0 && startY > 0) {
+            startY = 15; // Reset for a new "virtual" page, though it is one page
         }
 
         doc.setFontSize(20);

@@ -27,15 +27,18 @@ export function DatePickerCell({ value, onValueChange, className }: DatePickerCe
   let date: Date | undefined = undefined;
   if (value) {
     // Try parsing yyyy-MM-dd format first.
-    const parsedDate = parse(value, 'yyyy-MM-dd', new Date());
+    let parsedDate = parse(value, 'yyyy-MM-dd', new Date());
+    if (isNaN(parsedDate.getTime())) {
+      // Fallback for other JS-parsable date formats which might not include timezone
+      parsedDate = new Date(value);
+    }
+    // Final check if date is valid
     if (!isNaN(parsedDate.getTime())) {
-      date = parsedDate;
-    } else {
-      // Fallback for other JS-parsable date formats
-      const fallbackDate = new Date(value);
-      if (!isNaN(fallbackDate.getTime())) {
-        date = fallbackDate;
-      }
+      // To prevent timezone shifts, get the UTC date parts and create a new Date
+      const year = parsedDate.getFullYear();
+      const month = parsedDate.getMonth();
+      const day = parsedDate.getDate();
+      date = new Date(year, month, day, 12); // Use noon to avoid timezone boundary issues
     }
   }
 
