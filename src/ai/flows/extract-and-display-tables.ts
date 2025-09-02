@@ -16,7 +16,7 @@ const ExtractTablesInputSchema = z.object({
   fileDataUri: z
     .string()
     .describe(
-      'The file (Excel or PDF) as a data URI that must include a MIME type and use Base64 encoding. Expected format: \'data:<mimetype>;base64,<encoded_data>\'.' 
+      'The file (Excel or PDF) as a data URI that must include a MIME type and use Base64 encoding. Expected format: \'data:<mimetype>;base64,<encoded_data>\'.'
     ),
   fileType: z.enum(['excel', 'pdf']).describe('The type of the uploaded file.'),
 });
@@ -44,7 +44,7 @@ const prompt = ai.definePrompt({
 
 You will receive a file (in data URI format) and your task is to extract all tables from it. The file can be either an Excel file or a PDF file.
 
-Ensure that the \"tables\" array in the output contains all tables found in the document.
+Ensure that the "tables" array in the output contains all tables found in the document.
 
 File Type: {{{fileType}}}
 File Content: {{media url=fileDataUri}}
@@ -68,7 +68,22 @@ const extractTablesFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
+
+    if (output && output.tables.length > 0) {
+      // Add "Shop Drawings Approval Date" to the Engineering table (first table)
+      const engineeringTable = output.tables[0];
+      if (engineeringTable) {
+        // Add header if it doesn't exist
+        if (!engineeringTable.headers.includes('Shop Drawings Approval Date')) {
+          engineeringTable.headers.push('Shop Drawings Approval Date');
+          // Add a placeholder value for each row in the new column
+          engineeringTable.rows.forEach(row => {
+            row.push('');
+          });
+        }
+      }
+    }
+    
     return output!;
   }
 );
-
