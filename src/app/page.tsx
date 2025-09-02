@@ -1,76 +1,53 @@
 'use client';
 
 import { useState } from 'react';
-import type { ExtractTablesOutput } from '@/ai/flows/extract-and-display-tables';
-import { useToast } from '@/hooks/use-toast';
-import { extractTables as extractTablesAction } from '@/app/actions';
-
+import type { ExtractTablesOutput } from '@/types';
 import { LogoIcon } from '@/components/icons';
-import { FileUploader } from '@/components/page/file-uploader';
 import { TableViewer } from '@/components/page/table-viewer';
 
+const staticData: ExtractTablesOutput = {
+  locations: [
+    {
+      location: 'NCSI Action Plan',
+      tables: [
+        {
+          title: 'Engineering',
+          headers: ['Activity ID', 'Activity Name', 'Shop Drawing Submission Date', 'Shop Drawing Approval Date'],
+          rows: [
+            ['ENG-001', 'Structural Drawings', '2024-09-15', ''],
+            ['ENG-002', 'Architectural Drawings', '2024-09-20', ''],
+            ['ENG-003', 'MEP Drawings', '2024-09-25', ''],
+          ],
+        },
+        {
+          title: 'Procurement',
+          headers: ['Activity ID', 'Activity Name', 'Material Submittal Date', 'Procurement Status'],
+          rows: [
+            ['PROC-001', 'Steel Beams', '2024-10-01', '🟡 Pending'],
+            ['PROC-002', 'Concrete Mix', '2024-10-05', '🟠 In Progress'],
+            ['PROC-003', 'Electrical Fixtures', '2024-10-10', '🟢 Completed'],
+          ],
+        },
+        {
+          title: 'Execution',
+          headers: ['Activity ID', 'Activity Name', 'Execution Start Date', 'Execution Finish Date'],
+          rows: [
+            ['EXEC-001', 'Foundation Work', '2024-11-01', ''],
+            ['EXEC-002', 'Framing', '2024-11-15', ''],
+            ['EXEC-003', 'Roofing', '2024-12-01', ''],
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+
 export default function Home() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [extractedData, setExtractedData] = useState<ExtractTablesOutput | null>(null);
-  const [fileName, setFileName] = useState<string>('');
-  const { toast } = useToast();
-
-  const handleFileProcess = async (file: File) => {
-    setIsLoading(true);
-    setExtractedData(null);
-    setFileName(file.name);
-
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = async () => {
-      try {
-        const fileDataUri = reader.result as string;
-        const fileType = file.type.includes('pdf') ? 'pdf' : 'excel';
-        
-        if (!fileDataUri) {
-          throw new Error('Could not read file.');
-        }
-
-        const result = await extractTablesAction({ fileDataUri, fileType });
-        
-        if (result.success && result.data) {
-          if (result.data.locations.length === 0) {
-             toast({
-              variant: "default",
-              title: "No Micro Level Program Found",
-              description: "The AI couldn't find any locations or tables in the uploaded file.",
-            });
-          }
-          setExtractedData(result.data);
-        } else {
-          throw new Error(result.error || 'An unknown error occurred.');
-        }
-
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
-        toast({
-          variant: "destructive",
-          title: "Extraction Failed",
-          description: errorMessage,
-        });
-        setExtractedData(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    reader.onerror = () => {
-        toast({
-            variant: "destructive",
-            title: "File Read Error",
-            description: "There was an error reading your file.",
-        });
-        setIsLoading(false);
-    };
-  };
+  const [data, setData] = useState<ExtractTablesOutput>(staticData);
 
   const handleReset = () => {
-    setExtractedData(null);
-    setFileName('');
+    setData(staticData);
   };
 
   return (
@@ -83,15 +60,11 @@ export default function Home() {
       </header>
       <main className="flex-1 py-8 md:py-12">
         <div className="container mx-auto px-4">
-          {!extractedData ? (
-            <FileUploader onFileProcess={handleFileProcess} isLoading={isLoading} />
-          ) : (
             <TableViewer 
-              initialData={extractedData} 
+              initialData={data} 
               onReset={handleReset}
-              fileName={fileName}
+              fileName="NCSI Action Plan 2-9-2025 1.pdf"
             />
-          )}
         </div>
       </main>
       <footer className="p-4 border-t">
