@@ -92,10 +92,10 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const [editedLocations, setEditedLocations] = useState<string[]>([]);
   const [projectDetails, setProjectDetails] = useState<ProjectDetailsData>({
     date: format(new Date(), 'yyyy-MM-dd'),
-    referenceNumber: '',
-    projectName: '',
-    clientName: '',
-    clientContactPerson: '',
+    referenceNumber: 'AE/MLP/001',
+    projectName: initialData.locations[0]?.location || 'New Project',
+    clientName: 'Client Name',
+    clientContactPerson: 'Contact Person',
   });
   
   useEffect(() => {
@@ -327,6 +327,11 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   },
                   didDrawCell: function (data: any) {
                     if (data.section !== 'body') {
+                        // Set header color for procurement status
+                        const isProcurementTable = table.title.toLowerCase() === 'procurement';
+                        if (isProcurementTable && data.column.index === data.table.columns.length - 2) { // Assuming status is second to last
+                            doc.setTextColor('#000000');
+                        }
                         return;
                     }
                     const header = visibleHeaders[data.column.index];
