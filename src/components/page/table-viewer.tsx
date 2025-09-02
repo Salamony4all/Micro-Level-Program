@@ -270,7 +270,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const downloadAllAsPdf = async () => {
     if (!projectDetails) return;
 
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'landscape' });
     const cleanFileName = getCleanFileName();
     
     let startY = 15;
@@ -294,7 +294,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         startY: startY,
         theme: 'plain',
         styles: { fontSize: 10, cellPadding: 1 },
-        columnStyles: { 0: { cellWidth: 95 }, 1: { cellWidth: 95 } },
+        columnStyles: { 0: { cellWidth: 135 }, 1: { cellWidth: 135 } },
     });
 
     startY = (doc as any).lastAutoTable.finalY + 10;
@@ -576,5 +576,3 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     </>
   );
 }
-
-    
