@@ -207,7 +207,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
       });
     });
     
-    doc.save(`${cleanFileName()}_all_tables.pdf`);
+    doc.save(`${cleanFileName}_all_tables.pdf`);
   };
   
   if (editedData.length === 0) {
@@ -338,7 +338,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                    <EditableCell
                                     key={`cell-${locIndex}-${tableIndex}-${rowIndex}-${colIndex}`}
                                     value={cellValue}
-                                    onValue-change={(newValue) => {
+                                    onValueChange={(newValue) => {
                                       handleCellChange(locIndex, tableIndex, rowIndex, colIndex, newValue)
                                     }}
                                   />
