@@ -2,7 +2,7 @@ import type {NextConfig} from 'next';
  
 const nextConfig: NextConfig = {
   output: 'export',
-  basePath: '/alshaya-enterprises',
+  trailingSlash: true,
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,

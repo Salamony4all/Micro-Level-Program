@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Redirecting...</title>
+    <script>
+      const repoName = 'alshaya-enterprises';
+      const segmentCount = 1; 
+      const l = window.location;
+      const newPath = l.pathname.split('/').slice(0, 1 + segmentCount).join('/') + '/?p=/' +
+        l.pathname.slice(1).split('/').slice(segmentCount).join('/') +
+        l.search +
+        l.hash;
+      
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') + newPath
+      );
+    </script>
+  </head>
+  <body>
+    <p>If you are not redirected automatically, please wait a moment.</p>
+  </body>
+</html>
