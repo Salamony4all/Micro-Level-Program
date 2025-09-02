@@ -239,29 +239,6 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const downloadAllAsPdf = async () => {
     const doc = new jsPDF();
     const cleanFileName = getCleanFileName();
-    let fontName = 'Helvetica'; // Default font
-
-    try {
-        // Noto Sans is a font that supports a wide range of characters, including emojis
-        const font = await fetch('/NotoSans-Regular.ttf');
-        if (!font.ok) throw new Error("Font not found");
-        const fontBuffer = await font.arrayBuffer();
-        const fontBlob = new Blob([fontBuffer], { type: 'font/ttf' });
-        const fontDataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (event) => resolve(event.target!.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(fontBlob);
-        });
-        
-        const customFontName = 'NotoSans';
-        doc.addFileToVFS(`${customFontName}.ttf`, fontDataUrl.split(',')[1]);
-        doc.addFont(`${customFontName}.ttf`, customFontName, 'normal');
-        doc.setFont(customFontName);
-        fontName = customFontName;
-    } catch (e) {
-        console.error("Could not load custom font for PDF, falling back to default.", e);
-    }
     
     let startY = 15;
 
@@ -293,9 +270,6 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   head: [visibleHeaders],
                   body: visibleRows,
                   startY: startY,
-                   styles: {
-                      font: fontName, // Use the selected font for the table
-                  },
               });
 
               startY = (doc as any).lastAutoTable.finalY + 15;
