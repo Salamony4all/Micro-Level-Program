@@ -66,7 +66,7 @@ const getDefaultHiddenColumns = (locations: LocationData[]): Record<string, Reco
       };
 
       table.headers.forEach(header => {
-        if (shouldHide(header) || header === "Remarks") {
+        if (shouldHide(header)) {
           newSet.add(header);
         }
       });
@@ -270,7 +270,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const downloadAllAsPdf = async () => {
     if (!projectDetails) return;
 
-    const doc = new jsPDF({ orientation: 'landscape' });
+    const doc = new jsPDF({ orientation: 'portrait' });
     const cleanFileName = getCleanFileName();
     
     let startY = 15;
@@ -294,7 +294,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         startY: startY,
         theme: 'plain',
         styles: { fontSize: 10, cellPadding: 1 },
-        columnStyles: { 0: { cellWidth: 135 }, 1: { cellWidth: 135 } },
+        columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 'auto' } },
     });
 
     startY = (doc as any).lastAutoTable.finalY + 10;
@@ -302,9 +302,9 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     editedData.forEach((loc, locIndex) => {
         const originalLocation = initialData.locations[locIndex];
 
-        doc.setFontSize(20);
+        doc.setFontSize(16);
         doc.text(`Location: ${editedLocations[locIndex]}`, (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
-        startY += 15;
+        startY += 10;
 
         loc.tables
           .sort((a, b) => tableTitlesOrder.indexOf(a.title) - tableTitlesOrder.indexOf(b.title))
@@ -319,7 +319,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
               const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
               const visibleRows = table.rows.map(row => visibleHeaderIndices.map(index => String(row[index] || '')));
               
-              doc.setFontSize(16);
+              doc.setFontSize(12);
               doc.text(table.title, 14, startY);
               startY += 7;
 
@@ -327,7 +327,18 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   head: [visibleHeaders],
                   body: visibleRows,
                   startY: startY,
-                  willDrawCell: function (data: any) {
+                  theme: 'grid',
+                  styles: {
+                    fontSize: 5, // Smaller font size to fit more content
+                    cellPadding: 1,
+                    overflow: 'linebreak'
+                  },
+                  headStyles: {
+                    fillColor: [22, 160, 133], // Header color
+                    textColor: 255,
+                    fontSize: 6,
+                  },
+                   willDrawCell: function (data: any) {
                     if (data.section !== 'body') {
                       return;
                     }
@@ -340,18 +351,19 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                     }
                   },
                   didDrawCell: function (data: any) {
-                    if (data.section === 'head') {
-                        const header = visibleHeaders[data.column.index];
-                        if (table.title.toLowerCase() === 'procurement' && header.toLowerCase().includes('status')) {
-                            doc.setTextColor('#000000');
-                        }
-                        return;
+                    const header = visibleHeaders[data.column.index];
+                    if(data.section === 'head') {
+                         if (table.title.toLowerCase() === 'procurement' && header.toLowerCase().includes('status')) {
+                            doc.setTextColor(255); // White for this header
+                         }
+                         return
                     }
+
 
                     if (data.section !== 'body') {
                         return;
                     }
-                    const header = visibleHeaders[data.column.index];
+
                     if (!header) return;
                     
                     const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && header.toLowerCase().includes('status');
@@ -359,19 +371,19 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                       const rawText = String(data.cell.raw);
                       const cellText = rawText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
 
-                      let textColor = '#000000'; // Default black
+                      let textColor: string | [number, number, number] = '#000000'; // Default black
 
                       if (cellText.includes('Completed')) {
-                          textColor = '#28a745'; // Green
+                          textColor = [40, 167, 69]; // Green
                       } else if (cellText.includes('Pending')) {
-                          textColor = '#ffc107'; // Yellow
+                          textColor = [255, 193, 7]; // Yellow
                       } else if (cellText.includes('In Progress')) {
-                          textColor = '#fd7e14'; // Orange
+                          textColor = [253, 126, 20]; // Orange
                       } else if (cellText.includes('Delayed')) {
-                          textColor = '#dc3545'; // Red
+                          textColor = [220, 53, 69]; // Red
                       }
                       
-                      doc.setTextColor(textColor);
+                      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
                       doc.setFont('helvetica', 'bold');
                       doc.text(cellText, data.cell.x + data.cell.padding('left'), data.cell.y + data.cell.height / 2, {
                         baseline: 'middle'
@@ -382,11 +394,11 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   },
               });
 
-              startY = (doc as any).lastAutoTable.finalY + 15;
+              startY = (doc as any).lastAutoTable.finalY + 10;
         });
     });
     
-    doc.save(`${getCleanFileName()}_all_tables.pdf`);
+    doc.save(`${cleanFileName}_all_tables.pdf`);
   };
   
   if (editedData.length === 0 || !projectDetails) {
