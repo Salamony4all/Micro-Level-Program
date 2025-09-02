@@ -152,6 +152,11 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   };
 
   const handleColumnToggle = (location: string, tableTitle: string, header: string) => {
+    const lowerHeader = header.toLowerCase();
+    if (lowerHeader.includes("main activity") || lowerHeader.includes("remarks")) {
+      return;
+    }
+    
     setHiddenColumns(prev => {
       const newHidden = { ...prev };
       if (!newHidden[location]) newHidden[location] = {};
@@ -417,6 +422,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                     key={header}
                                     checked={!hidden.has(header)}
                                     onCheckedChange={() => handleColumnToggle(originalLocation.location, table.title, header)}
+                                    disabled={header.toLowerCase().includes("main activity") || header.toLowerCase().includes("remarks")}
                                   >
                                     {header}
                                   </DropdownMenuCheckboxItem>
@@ -465,6 +471,14 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                             }}
                                           />
                                        )
+                                    }
+                                    
+                                    if (lowerHeader.includes('main activity') || lowerHeader.includes('activity/item')) {
+                                      return (
+                                        <TableCell key={`cell-${locIndex}-${table.title}-${rowIndex}-${colIndex}`}>
+                                          {cellValue}
+                                        </TableCell>
+                                      );
                                     }
 
                                     return (
