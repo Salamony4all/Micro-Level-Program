@@ -381,6 +381,8 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
       <CardContent className="space-y-8">
         {editedData.map((loc, locIndex) => {
           const originalLocation = initialData.locations[locIndex];
+          const initialTableData = initialData.locations[locIndex].tables;
+          
           return (
             <Card key={`loc-${locIndex}`} className="p-4 border rounded-lg">
               <CardHeader>
@@ -404,6 +406,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                     table.headers.forEach((h, i) => {
                         headerIndexMap[h] = i;
                     });
+                    const initialRowsForTable = initialTableData.find(t => t.title === table.title)?.rows.length || 0;
                     
                     return (
                       <div key={`table-container-${locIndex}-${table.title}`} className="p-4 border rounded-lg">
@@ -473,7 +476,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                        )
                                     }
                                     
-                                    if (lowerHeader.includes('main activity') || lowerHeader.includes('activity/item')) {
+                                    if ((lowerHeader.includes('main activity') || lowerHeader.includes('activity/item')) && rowIndex < initialRowsForTable) {
                                       return (
                                         <TableCell key={`cell-${locIndex}-${table.title}-${rowIndex}-${colIndex}`}>
                                           {cellValue}
