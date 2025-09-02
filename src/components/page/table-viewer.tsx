@@ -88,7 +88,6 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const [editedLocations, setEditedLocations] = useState<string[]>(() => initialData.locations.map(l => l.location));
   
   useEffect(() => {
-    const today = format(new Date(), 'yyyy-MM-dd');
     const dataWithDates = initialData.locations.map(loc => ({
       ...loc,
       tables: loc.tables.map(table => {
@@ -101,6 +100,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
               if (dateColumnIndices.length > 0) {
               const newRows = table.rows.map(row => {
                   const newRow = [...row];
+                  const today = format(new Date(), 'yyyy-MM-dd');
                   dateColumnIndices.forEach(index => {
                   if (!newRow[index]) {
                       newRow[index] = today;
@@ -236,17 +236,29 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     URL.revokeObjectURL(url);
   };
 
-  const downloadAllAsPdf = () => {
+  const downloadAllAsPdf = async () => {
     const doc = new jsPDF();
     const cleanFileName = getCleanFileName();
+
+    // Noto Sans is a font that supports a wide range of characters, including emojis
+    const font = await fetch('/NotoSans-Regular.ttf');
+    const fontBuffer = await font.arrayBuffer();
+    const fontBlob = new Blob([fontBuffer], { type: 'font/ttf' });
+    const fontDataUrl = await new Promise<string>(resolve => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target!.result as string);
+        reader.readAsDataURL(fontBlob);
+    });
+    
+    const fontName = 'NotoSans';
+    doc.addFileToVFS(`${fontName}.ttf`, fontDataUrl.split(',')[1]);
+    doc.addFont(`${fontName}.ttf`, fontName, 'normal');
+    doc.setFont(fontName);
+
     let startY = 15;
 
     editedData.forEach((loc, locIndex) => {
         const originalLocation = initialData.locations[locIndex].location;
-
-        if (locIndex > 0 && startY > 0) {
-            startY = 15; // Reset for a new "virtual" page, though it is one page
-        }
 
         doc.setFontSize(20);
         doc.text(`Location: ${editedLocations[locIndex]}`, (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
@@ -273,13 +285,16 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   head: [visibleHeaders],
                   body: visibleRows,
                   startY: startY,
+                   styles: {
+                      font: fontName, // Use the Noto Sans font for the table
+                  },
               });
 
               startY = (doc as any).lastAutoTable.finalY + 15;
         });
     });
     
-    doc.save(`${cleanFileName}_all_tables.pdf`);
+    doc.save(`${getCleanFileName()}_all_tables.pdf`);
   };
   
   if (editedData.length === 0) {
