@@ -1,11 +1,9 @@
 import type {NextConfig} from 'next';
-
-const isGithubActions = process.env.GITHUB_ACTIONS === 'true'
  
 const nextConfig: NextConfig = {
   output: 'export',
-  basePath: isGithubActions ? '/alshaya-enterprises' : '',
-  assetPrefix: isGithubActions ? '/alshaya-enterprises/' : '',
+  basePath: '/alshaya-enterprises',
+  assetPrefix: '/alshaya-enterprises/',
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
