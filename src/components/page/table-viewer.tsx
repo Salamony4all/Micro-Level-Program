@@ -22,6 +22,8 @@ type TableData = {
   rows: string[][];
 };
 
+const tableTitles = ["Engineering", "Procurement", "Execution"];
+
 export function TableViewer({ initialData, onReset, fileName }: TableViewerProps) {
   const [editedData, setEditedData] = useState<TableData[]>(initialData.tables);
   const [hiddenColumns, setHiddenColumns] = useState<Record<number, Set<string>>>({});
@@ -64,7 +66,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         visibleHeaderIndices.map(index => row[index])
       );
 
-      csvContent += `Table ${tableIndex + 1}\n`;
+      csvContent += `${tableTitles[tableIndex] || `Table ${tableIndex + 1}`}\n`;
       csvContent += visibleHeaders.join(',') + '\n';
       csvContent += visibleRows.map(row => 
         row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
@@ -107,12 +109,12 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
           startY: 30,
           didDrawPage: function (data: any) {
               doc.setFontSize(16);
-              doc.text(`Table ${tableIndex + 1}`, data.settings.margin.left, 25);
+              doc.text(tableTitles[tableIndex] || `Table ${tableIndex + 1}`, data.settings.margin.left, 25);
           }
       });
     });
     
-    doc.save(`${cleanFileName}_all_tables.pdf`);
+    doc.save(`${getCleanFileName()}_all_tables.pdf`);
   };
   
   const visibleTables = useMemo(() => {
@@ -175,7 +177,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         {visibleTables.map((table, tableIndex) => (
           <div key={`table-container-${tableIndex}`} className="p-4 border rounded-lg">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                <h3 className="text-lg font-semibold">Table {tableIndex + 1}</h3>
+                <h3 className="text-lg font-semibold">{tableTitles[tableIndex] || `Table ${tableIndex + 1}`}</h3>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline">
