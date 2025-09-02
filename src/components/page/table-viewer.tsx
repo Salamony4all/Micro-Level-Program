@@ -130,8 +130,8 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
       return {
         originalHeaders: table.headers,
         headers: visibleHeaders,
-        rows: table.rows, // pass original rows
-        headerIndexMap, // and the map
+        rows: visibleRows,
+        headerIndexMap: headerIndexMap
       };
     });
   }, [editedData, hiddenColumns]);
@@ -214,11 +214,14 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                 <TableBody>
                   {table.rows.map((row, rowIndex) => (
                     <TableRow key={`row-${tableIndex}-${rowIndex}`}>
-                      {table.headerIndexMap.map((originalColIndex, visibleColIndex) => (
-                        <EditableCell
+                      {row.map((cell, visibleColIndex) => (
+                         <EditableCell
                           key={`cell-${tableIndex}-${rowIndex}-${visibleColIndex}`}
-                          value={row[originalColIndex]}
-                          onValueChange={(newValue) => handleCellChange(tableIndex, rowIndex, originalColIndex, newValue)}
+                          value={cell}
+                          onValueChange={(newValue) => {
+                            const originalColIndex = table.headerIndexMap[visibleColIndex];
+                            handleCellChange(tableIndex, rowIndex, originalColIndex, newValue)
+                          }}
                         />
                       ))}
                     </TableRow>
