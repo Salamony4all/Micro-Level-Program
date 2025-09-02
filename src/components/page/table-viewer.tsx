@@ -120,18 +120,18 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const visibleTables = useMemo(() => {
     return editedData.map((table, tableIndex) => {
       const hidden = hiddenColumns[tableIndex] || new Set();
-      const visibleHeaders = table.headers.filter(h => !hidden.has(h));
-      const headerIndexMap = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
-      
-      const visibleRows = table.rows.map(row => {
-          return headerIndexMap.map(index => row[index]);
-      });
+      const headerIndexMap = table.headers
+        .map((header, index) => (hidden.has(header) ? -1 : index))
+        .filter(index => index !== -1);
+
+      const visibleHeaders = headerIndexMap.map(index => table.headers[index]);
+      const visibleRows = table.rows.map(row => headerIndexMap.map(index => row[index]));
 
       return {
         originalHeaders: table.headers,
         headers: visibleHeaders,
         rows: visibleRows,
-        headerIndexMap: headerIndexMap
+        headerIndexMap,
       };
     });
   }, [editedData, hiddenColumns]);
@@ -214,16 +214,17 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                 <TableBody>
                   {table.rows.map((row, rowIndex) => (
                     <TableRow key={`row-${tableIndex}-${rowIndex}`}>
-                      {row.map((cell, visibleColIndex) => (
+                      {row.map((cell, visibleColIndex) => {
+                        const originalColIndex = table.headerIndexMap[visibleColIndex];
+                        return (
                          <EditableCell
-                          key={`cell-${tableIndex}-${rowIndex}-${visibleColIndex}`}
+                          key={`cell-${tableIndex}-${rowIndex}-${originalColIndex}`}
                           value={cell}
                           onValueChange={(newValue) => {
-                            const originalColIndex = table.headerIndexMap[visibleColIndex];
                             handleCellChange(tableIndex, rowIndex, originalColIndex, newValue)
                           }}
                         />
-                      ))}
+                      )})}
                     </TableRow>
                   ))}
                 </TableBody>
