@@ -273,12 +273,12 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     const doc = new jsPDF({ orientation: 'portrait' });
     const cleanFileName = getCleanFileName();
     
-    let startY = 15;
+    let startY = 10;
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
+    doc.setFontSize(14);
     doc.text("Alshaya Enterprises ™", (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
-    startY += 12;
+    startY += 6;
 
     doc.setFont('helvetica', 'normal');
     
@@ -292,18 +292,18 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         body: details,
         startY: startY,
         theme: 'plain',
-        styles: { fontSize: 9, cellPadding: 1 },
+        styles: { fontSize: 7, cellPadding: 0.5 },
         columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 'auto' } },
     });
 
-    startY = (doc as any).lastAutoTable.finalY + 10;
+    startY = (doc as any).lastAutoTable.finalY + 5;
 
     editedData.forEach((loc, locIndex) => {
         const originalLocation = initialData.locations[locIndex];
 
-        doc.setFontSize(14);
+        doc.setFontSize(12);
         doc.text(`Location: ${editedLocations[locIndex]}`, (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
-        startY += 8;
+        startY += 6;
 
         loc.tables
           .sort((a, b) => tableTitlesOrder.indexOf(a.title) - tableTitlesOrder.indexOf(b.title))
@@ -320,7 +320,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
               
               doc.setFontSize(10);
               doc.text(table.title, 14, startY);
-              startY += 6;
+              startY += 5;
 
               (doc as any).autoTable({
                   head: [visibleHeaders],
@@ -392,7 +392,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   },
               });
 
-              startY = (doc as any).lastAutoTable.finalY + 10;
+              startY = (doc as any).lastAutoTable.finalY + 5;
         });
     });
     
