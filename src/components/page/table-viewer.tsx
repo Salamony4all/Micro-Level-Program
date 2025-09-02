@@ -13,6 +13,7 @@ import { Download, ChevronsUpDown, RotateCcw, FileText, Trash2, PlusCircle } fro
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
+import { Input } from '../ui/input';
 
 interface TableViewerProps {
   initialData: ExtractTablesOutput;
@@ -107,6 +108,15 @@ const initializeTableData = (locations: LocationData[]): LocationData[] => {
 export function TableViewer({ initialData, onReset, fileName }: TableViewerProps) {
   const [editedData, setEditedData] = useState<LocationData[]>(() => initializeTableData(initialData.locations));
   const [hiddenColumns, setHiddenColumns] = useState<Record<string, Record<string, Set<string>>>>(() => getDefaultHiddenColumns(initialData.locations));
+  const [editedLocations, setEditedLocations] = useState<string[]>(() => initialData.locations.map(l => l.location));
+
+  const handleLocationChange = (newLocation: string, index: number) => {
+    setEditedLocations(prevLocations => {
+      const newLocations = [...prevLocations];
+      newLocations[index] = newLocation;
+      return newLocations;
+    });
+  };
 
   const handleCellChange = (locIndex: number, tableIndex: number, rowIndex: number, colIndex: number, value: string) => {
     setEditedData(prevData => {
@@ -167,8 +177,8 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
   const downloadAllAsCsv = () => {
     let csvContent = '';
     
-    editedData.forEach((loc) => {
-      csvContent += `Location: ${loc.location}\n\n`;
+    editedData.forEach((loc, locIndex) => {
+      csvContent += `Location: ${editedLocations[locIndex]}\n\n`;
       loc.tables.forEach(table => {
         const hidden = hiddenColumns[loc.location]?.[table.title] || new Set();
         const visibleHeaders = table.headers.filter(h => !hidden.has(h));
@@ -200,15 +210,15 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     const cleanFileName = getCleanFileName();
     let startY = 15;
 
-    editedData.forEach((loc) => {
+    editedData.forEach((loc, locIndex) => {
 
-      if (startY > 15) {
+      if (startY > 250) { // check if we need a new page
           doc.addPage();
           startY = 15;
       }
       
       doc.setFontSize(20);
-      doc.text(`Location: ${loc.location}`, (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
+      doc.text(`Location: ${editedLocations[locIndex]}`, (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
       startY += 15;
 
       loc.tables.forEach((table) => {
@@ -284,7 +294,15 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         {editedData.map((loc, locIndex) => (
           <Card key={`loc-${locIndex}`} className="p-4 border rounded-lg">
             <CardHeader>
-              <CardTitle className="text-xl">Location / Area / Zone: {loc.location}</CardTitle>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-semibold">Location / Area / Zone:</span>
+                <Input
+                    type="text"
+                    defaultValue={editedLocations[locIndex]}
+                    onBlur={(e) => handleLocationChange(e.target.value, locIndex)}
+                    className="text-xl font-semibold border-0 border-b-2 rounded-none shadow-none focus-visible:ring-0 focus:border-primary"
+                  />
+              </div>
             </CardHeader>
             <CardContent className="space-y-6">
               {loc.tables
