@@ -280,13 +280,19 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   body: visibleRows,
                   startY: startY,
                   willDrawCell: function (data: any) {
-                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && data.column.header.toLowerCase().includes('status');
+                    const header = visibleHeaders[data.column.index];
+                    if (!header) return;
+
+                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && header.toLowerCase().includes('status');
                     if (isProcurementStatusColumn) {
                       data.cell.text = ''; 
                     }
                   },
                   didDrawCell: function (data: any) {
-                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && data.column.header.toLowerCase().includes('status');
+                    const header = visibleHeaders[data.column.index];
+                    if (!header) return;
+                    
+                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && header.toLowerCase().includes('status');
                     if (isProcurementStatusColumn && data.cell.raw) {
                       const rawText = String(data.cell.raw);
                       const cellText = rawText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '').trim();
@@ -490,7 +496,3 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     </Card>
   );
 }
-
-    
-
-    
