@@ -276,9 +276,14 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     let startY = 10;
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
+    doc.setFontSize(10);
     doc.text("Alshaya Enterprises ™", (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
-    startY += 6;
+    startY += 5;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text("Micro level Program / Action Plan", (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
+    startY += 5;
 
     doc.setFont('helvetica', 'normal');
     
@@ -292,7 +297,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         body: details,
         startY: startY,
         theme: 'plain',
-        styles: { fontSize: 7, cellPadding: 0.5 },
+        styles: { fontSize: 6, cellPadding: 0.5 },
         columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 'auto' } },
     });
 
@@ -416,6 +421,8 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
       )
   }
 
+  const initialRowsForLocationCount = initialData.locations[0].tables.find(t => t.title === "Engineering")?.rows.length || 0;
+
   return (
     <>
       <ProjectDetails data={projectDetails} onDataChange={handleProjectDetailsChange} />
@@ -445,8 +452,6 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         <CardContent className="space-y-8">
           {editedData.map((loc, locIndex) => {
             const originalLocation = initialData.locations[locIndex];
-            const initialTableData = initialData.locations[locIndex].tables;
-            const initialRowsForLocation = initialTableData.find(t => t.title === "Engineering")?.rows.length || 0;
 
             return (
               <Card key={`loc-${locIndex}`} className="p-4 border rounded-lg">
@@ -541,7 +546,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                          )
                                       }
                                       
-                                      if ((lowerHeader.includes('main activity') || lowerHeader.includes('activity/item')) && rowIndex < initialRowsForLocation) {
+                                      if ((lowerHeader.includes('main activity') || lowerHeader.includes('activity/item')) && rowIndex < initialRowsForLocationCount) {
                                         return (
                                           <TableCell key={`cell-${locIndex}-${table.title}-${rowIndex}-${colIndex}`}>
                                             {cellValue}
