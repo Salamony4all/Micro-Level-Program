@@ -290,6 +290,10 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   body: visibleRows,
                   startY: startY,
                   willDrawCell: function (data: any) {
+                    if (data.section !== 'body') {
+                      return;
+                    }
+
                     const header = visibleHeaders[data.column.index];
                     if (!header) return;
 
@@ -299,6 +303,9 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                     }
                   },
                   didDrawCell: function (data: any) {
+                    if (data.section !== 'body') {
+                        return;
+                    }
                     const header = visibleHeaders[data.column.index];
                     if (!header) return;
                     
@@ -520,3 +527,5 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     </Card>
   );
 }
+
+    
