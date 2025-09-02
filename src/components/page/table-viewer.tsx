@@ -47,7 +47,7 @@ const getDefaultHiddenColumns = (locations: LocationData[]): Record<string, Reco
         const lowerHeader = header.toLowerCase();
 
         // Always show "Main Activity" and "Remarks"
-        if (lowerHeader.includes("main activity") || lowerHeader.includes("activity/item")) {
+        if (lowerHeader.includes("main activity") || lowerHeader.includes("activity/item") || lowerHeader.includes("remarks")) {
           return false;
         }
         
@@ -276,12 +276,11 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     let startY = 15;
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(24);
+    doc.setFontSize(20);
     doc.text("Alshaya Enterprises ™", (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
-    startY += 15;
+    startY += 12;
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
     
     const details = [
         [`Date: ${format(new Date(projectDetails.date), 'PPP')}`, `Reference No: ${projectDetails.referenceNumber}`],
@@ -293,7 +292,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
         body: details,
         startY: startY,
         theme: 'plain',
-        styles: { fontSize: 10, cellPadding: 1 },
+        styles: { fontSize: 9, cellPadding: 1 },
         columnStyles: { 0: { cellWidth: 'auto' }, 1: { cellWidth: 'auto' } },
     });
 
@@ -302,9 +301,9 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     editedData.forEach((loc, locIndex) => {
         const originalLocation = initialData.locations[locIndex];
 
-        doc.setFontSize(16);
+        doc.setFontSize(14);
         doc.text(`Location: ${editedLocations[locIndex]}`, (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
-        startY += 10;
+        startY += 8;
 
         loc.tables
           .sort((a, b) => tableTitlesOrder.indexOf(a.title) - tableTitlesOrder.indexOf(b.title))
@@ -319,9 +318,9 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
               const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
               const visibleRows = table.rows.map(row => visibleHeaderIndices.map(index => String(row[index] || '')));
               
-              doc.setFontSize(12);
+              doc.setFontSize(10);
               doc.text(table.title, 14, startY);
-              startY += 7;
+              startY += 6;
 
               (doc as any).autoTable({
                   head: [visibleHeaders],
@@ -342,10 +341,9 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                     if (data.section !== 'body') {
                       return;
                     }
-                    const header = visibleHeaders[data.column.index];
-                    if (!header) return;
+                    if (!visibleHeaders[data.column.index]) return;
 
-                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && header.toLowerCase().includes('status');
+                    const isProcurementStatusColumn = table.title.toLowerCase() === 'procurement' && visibleHeaders[data.column.index].toLowerCase().includes('status');
                     if (isProcurementStatusColumn) {
                       data.cell.text = ''; 
                     }
@@ -353,7 +351,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                   didDrawCell: function (data: any) {
                     const header = visibleHeaders[data.column.index];
                     if(data.section === 'head') {
-                         if (table.title.toLowerCase() === 'procurement' && header.toLowerCase().includes('status')) {
+                         if (table.title.toLowerCase() === 'procurement' && header?.toLowerCase().includes('status')) {
                             doc.setTextColor(255); // White for this header
                          }
                          return
