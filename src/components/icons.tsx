@@ -11,10 +11,13 @@ export const LogoIcon = (props: React.SVGProps<SVGSVGElement>) => (
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <rect width="18" height="18" x="3" y="3" rx="2" />
-      <path d="M3 9h18" />
-      <path d="M3 15h18" />
-      <path d="M9 3v18" />
-      <path d="M15 3v18" />
+        <path d="M4 22h16" />
+        <path d="M5 22v-15.172a2 2 0 0 1 .586-1.414l5.172-5.172a2 2 0 0 1 2.828 0l5.172 5.172A2 2 0 0 1 20 6.828V22" />
+        <path d="M9 18H7" />
+        <path d="M9 14H7" />
+        <path d="M17 18h-2" />
+        <path d="M17 14h-2" />
+        <path d="M13 18h-2" />
+        <path d="M13 14h-2" />
     </svg>
 );

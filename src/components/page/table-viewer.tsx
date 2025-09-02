@@ -110,7 +110,9 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                     // Only set a default date if the cell is empty
                     if (!newRow[index]) {
                       const today = new Date();
-                      newRow[index] = format(today, 'yyyy-MM-dd');
+                      // Set timezone to UTC to avoid hydration errors
+                      const utcDate = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+                      newRow[index] = format(utcDate, 'yyyy-MM-dd');
                     }
                   });
                   return newRow;
@@ -247,9 +249,12 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     const doc = new jsPDF();
     const cleanFileName = getCleanFileName();
     
-    let startY = 15;
+    let startY = 25;
 
     doc.setFont('helvetica', 'bold');
+    doc.setFontSize(24);
+    doc.text("Alshaya Enterprises ™", (doc.internal.pageSize.getWidth() / 2), 15, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
 
     editedData.forEach((loc, locIndex) => {
         const originalLocation = initialData.locations[locIndex];
@@ -314,6 +319,8 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                       doc.text(cellText, data.cell.x + data.cell.padding('left'), data.cell.y + data.cell.height / 2, {
                         baseline: 'middle'
                       });
+                      doc.setFont('helvetica', 'normal');
+                      doc.setTextColor('#000000');
                     }
                   },
               });
