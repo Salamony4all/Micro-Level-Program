@@ -102,7 +102,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
       return (
         <Card className="w-full max-w-4xl mx-auto shadow-lg">
             <CardHeader>
-                <CardTitle>No Tables Found</CardTitle>
+                <CardTitle>No Micro Level Program Found</CardTitle>
                 <CardDescription>We couldn't detect any structured tables in '{fileName}'. Please try another file.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -120,8 +120,8 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <CardTitle className="text-3xl">Extracted Tables</CardTitle>
-                <CardDescription>Found {editedData.length} table(s) in '{fileName}'. You can edit the data below.</CardDescription>
+                <CardTitle className="text-3xl">Micro Level Program</CardTitle>
+                <CardDescription>Generated Micro Level Program from '{fileName}'. You can edit the data below.</CardDescription>
             </div>
             <Button onClick={onReset} variant="outline">
                 <RotateCcw className="mr-2 h-4 w-4" />

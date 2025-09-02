@@ -37,7 +37,7 @@ export default function Home() {
           if (result.data.tables.length === 0) {
              toast({
               variant: "default",
-              title: "No Tables Found",
+              title: "No Micro Level Program Found",
               description: "The AI couldn't find any tables in the uploaded file.",
             });
           }
