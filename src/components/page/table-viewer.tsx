@@ -30,26 +30,31 @@ const getDefaultHiddenColumns = (tables: TableData[]): Record<number, Set<string
   tables.forEach((table, index) => {
     hidden[index] = new Set<string>();
     const title = tableTitles[index];
+    
+    // Function to check if a header should be hidden
+    const shouldHide = (header: string): boolean => {
+      const lowerHeader = header.toLowerCase();
+      if (lowerHeader.includes("activity")) {
+        return false;
+      }
 
-    if (title === "Engineering") {
-      table.headers.forEach(header => {
-        if (!header.includes("Shop Drawing")) {
-          hidden[index].add(header);
-        }
-      });
-    } else if (title === "Procurement") {
-      table.headers.forEach(header => {
-        if (header !== "Procurement Status") {
-          hidden[index].add(header);
-        }
-      });
-    } else if (title === "Execution") {
-      table.headers.forEach(header => {
-        if (!header.toLowerCase().includes("start") && !header.toLowerCase().includes("finish")) {
-          hidden[index].add(header);
-        }
-      });
-    }
+      if (title === "Engineering") {
+        return !lowerHeader.includes("shop drawing");
+      }
+      if (title === "Procurement") {
+        return lowerHeader !== "procurement status";
+      }
+      if (title === "Execution") {
+        return !lowerHeader.includes("start") && !lowerHeader.includes("finish");
+      }
+      return true; // Hide by default if no specific rule matches
+    };
+
+    table.headers.forEach(header => {
+      if (shouldHide(header)) {
+        hidden[index].add(header);
+      }
+    });
   });
 
   return hidden;
