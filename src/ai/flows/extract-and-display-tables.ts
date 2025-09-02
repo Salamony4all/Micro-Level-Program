@@ -75,11 +75,22 @@ const extractTablesFlow = ai.defineFlow(
       if (engineeringTable) {
         // Add header if it doesn't exist
         if (!engineeringTable.headers.includes('Shop Drawings Approval Date')) {
-          engineeringTable.headers.push('Shop Drawings Approval Date');
-          // Add a placeholder value for each row in the new column
-          engineeringTable.rows.forEach(row => {
-            row.push('');
-          });
+          const submissionDateIndex = engineeringTable.headers.indexOf('Shop Drawing Submission Date');
+          const approvalDateHeader = 'Shop Drawings Approval Date';
+          
+          if (submissionDateIndex !== -1) {
+            // Insert after "Shop Drawing Submission Date"
+            engineeringTable.headers.splice(submissionDateIndex + 1, 0, approvalDateHeader);
+            engineeringTable.rows.forEach(row => {
+              row.splice(submissionDateIndex + 1, 0, '');
+            });
+          } else {
+            // Fallback: add to the end
+            engineeringTable.headers.push(approvalDateHeader);
+            engineeringTable.rows.forEach(row => {
+              row.push('');
+            });
+          }
         }
       }
     }
