@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react';
 import type { ExtractTablesOutput } from '@/ai/flows/extract-and-display-tables';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableHeader, TableHead, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EditableCell } from './editable-cell';
@@ -50,64 +49,70 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
     });
   };
   
-  const downloadAsCsv = (filename: string, headers: string[], rows: string[][]) => {
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => 
+  const getCleanFileName = () => fileName.substring(0, fileName.lastIndexOf('.')).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+  const downloadAllAsCsv = () => {
+    let csvContent = '';
+    
+    editedData.forEach((table, tableIndex) => {
+      const hidden = hiddenColumns[tableIndex] || new Set();
+  
+      const visibleHeaders = table.headers.filter(h => !hidden.has(h));
+      const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
+      
+      const visibleRows = table.rows.map(row => 
+        visibleHeaderIndices.map(index => row[index])
+      );
+
+      csvContent += `Table ${tableIndex + 1}\n`;
+      csvContent += visibleHeaders.join(',') + '\n';
+      csvContent += visibleRows.map(row => 
         row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-      )
-    ].join('\n');
+      ).join('\n') + '\n\n';
+    });
   
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', filename);
+    link.setAttribute('download', `${getCleanFileName()}_all_tables.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
-  
-  const handleDownloadCsv = (tableIndex: number) => {
-    const table = editedData[tableIndex];
-    const hidden = hiddenColumns[tableIndex] || new Set();
 
-    const visibleHeaders = table.headers.filter(h => !hidden.has(h));
-    const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
-    
-    const visibleRows = table.rows.map(row => 
-      visibleHeaderIndices.map(index => row[index])
-    );
-
-    const cleanFileName = fileName.substring(0, fileName.lastIndexOf('.')).replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    downloadAsCsv(`${cleanFileName}_table_${tableIndex + 1}.csv`, visibleHeaders, visibleRows);
-  };
-
-  const handleDownloadPdf = (tableIndex: number) => {
-    const table = editedData[tableIndex];
-    const hidden = hiddenColumns[tableIndex] || new Set();
-    const cleanFileName = fileName.substring(0, fileName.lastIndexOf('.')).replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    
+  const downloadAllAsPdf = () => {
     const doc = new jsPDF();
+    const cleanFileName = getCleanFileName();
     
-    const visibleHeaders = table.headers.filter(h => !hidden.has(h));
-    const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
-    const visibleRows = table.rows.map(row => 
-      visibleHeaderIndices.map(index => row[index])
-    );
+    doc.setFontSize(20);
+    doc.text(`Tables from ${fileName}`, (doc.internal.pageSize.getWidth() / 2), 15, { align: 'center' });
 
-    (doc as any).autoTable({
-        head: [visibleHeaders],
-        body: visibleRows,
-        didDrawPage: function (data: any) {
-            doc.setFontSize(20);
-            doc.text(`Table ${tableIndex + 1} from ${fileName}`, data.settings.margin.left, 15);
-        }
+    editedData.forEach((table, tableIndex) => {
+      if (tableIndex > 0) {
+        doc.addPage();
+      }
+      const hidden = hiddenColumns[tableIndex] || new Set();
+      const visibleHeaders = table.headers.filter(h => !hidden.has(h));
+      const visibleHeaderIndices = table.headers.map((h, i) => hidden.has(h) ? -1 : i).filter(i => i !== -1);
+      const visibleRows = table.rows.map(row => 
+        visibleHeaderIndices.map(index => row[index])
+      );
+
+      (doc as any).autoTable({
+          head: [visibleHeaders],
+          body: visibleRows,
+          startY: 30,
+          didDrawPage: function (data: any) {
+              doc.setFontSize(16);
+              doc.text(`Table ${tableIndex + 1}`, data.settings.margin.left, 25);
+          }
+      });
     });
     
-    doc.save(`${cleanFileName}_table_${tableIndex + 1}.pdf`);
+    doc.save(`${cleanFileName}_all_tables.pdf`);
   };
   
   const visibleTables = useMemo(() => {
@@ -150,79 +155,73 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                 <CardTitle className="text-3xl">Micro Level Program</CardTitle>
                 <CardDescription>Generated Micro Level Program from '{fileName}'. You can edit the data below.</CardDescription>
             </div>
-            <Button onClick={onReset} variant="outline">
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Start Over
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={onReset} variant="outline">
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Start Over
+              </Button>
+              <Button onClick={downloadAllAsPdf} variant="outline">
+                <FileText className="mr-2 h-4 w-4" />
+                Download as PDF
+              </Button>
+              <Button onClick={downloadAllAsCsv} className="bg-accent hover:bg-accent/90">
+                <Download className="mr-2 h-4 w-4" />
+                Download as CSV
+              </Button>
+            </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="table-0">
-          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {editedData.map((_, i) => (
-              <TabsTrigger key={`trigger-${i}`} value={`table-${i}`}>Table {i + 1}</TabsTrigger>
-            ))}
-          </TabsList>
-          {visibleTables.map((table, tableIndex) => (
-            <TabsContent key={`content-${tableIndex}`} value={`table-${tableIndex}`}>
-              <div className="mt-4 p-4 border rounded-lg">
-                 <div className="flex justify-end mb-4 gap-2 flex-wrap">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline">
-                          <ChevronsUpDown className="mr-2 h-4 w-4" />
-                          Show/Hide Columns
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        {table.originalHeaders.map(header => (
-                          <DropdownMenuCheckboxItem
-                            key={header}
-                            checked={!hiddenColumns[tableIndex]?.has(header)}
-                            onCheckedChange={() => handleColumnToggle(tableIndex, header)}
-                          >
-                            {header}
-                          </DropdownMenuCheckboxItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Button onClick={() => handleDownloadPdf(tableIndex)} variant="outline">
-                      <FileText className="mr-2 h-4 w-4" />
-                      Download as PDF
+      <CardContent className="space-y-8">
+        {visibleTables.map((table, tableIndex) => (
+          <div key={`table-container-${tableIndex}`} className="p-4 border rounded-lg">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <h3 className="text-lg font-semibold">Table {tableIndex + 1}</h3>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">
+                      <ChevronsUpDown className="mr-2 h-4 w-4" />
+                      Show/Hide Columns
                     </Button>
-                    <Button onClick={() => handleDownloadCsv(tableIndex)} className="bg-accent hover:bg-accent/90">
-                      <Download className="mr-2 h-4 w-4" />
-                      Download as CSV
-                    </Button>
-                </div>
-                <div className="overflow-x-auto relative">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {table.headers.map((header, i) => (
-                          <TableHead key={`head-${i}`}>{header}</TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {table.rows.map((row, rowIndex) => (
-                        <TableRow key={`row-${rowIndex}`}>
-                          {table.headerIndexMap.map((colIndex, i) => (
-                            <EditableCell
-                              key={`cell-${rowIndex}-${i}`}
-                              value={row[colIndex]}
-                              onValueChange={(newValue) => handleCellChange(tableIndex, rowIndex, colIndex, newValue)}
-                            />
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {table.originalHeaders.map(header => (
+                      <DropdownMenuCheckboxItem
+                        key={header}
+                        checked={!hiddenColumns[tableIndex]?.has(header)}
+                        onCheckedChange={() => handleColumnToggle(tableIndex, header)}
+                      >
+                        {header}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            </TabsContent>
-          ))}
-        </Tabs>
+            <div className="overflow-x-auto relative">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {table.headers.map((header, i) => (
+                      <TableHead key={`head-${tableIndex}-${i}`}>{header}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {table.rows.map((row, rowIndex) => (
+                    <TableRow key={`row-${tableIndex}-${rowIndex}`}>
+                      {table.headerIndexMap.map((colIndex, i) => (
+                        <EditableCell
+                          key={`cell-${tableIndex}-${rowIndex}-${i}`}
+                          value={row[colIndex]}
+                          onValueChange={(newValue) => handleCellChange(tableIndex, rowIndex, colIndex, newValue)}
+                        />
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ))}
       </CardContent>
     </Card>
   );
