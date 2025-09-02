@@ -173,6 +173,13 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
           }
         });
       }
+       if (lowerTitle === "procurement") {
+        table.headers.forEach((header, index) => {
+          if (header.toLowerCase().includes('status')) {
+            newRow[index] = '🟡 Pending';
+          }
+        });
+      }
       
       table.rows.push(newRow);
       return newData;
@@ -232,6 +239,11 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
 
     editedData.forEach((loc, locIndex) => {
         const originalLocation = initialData.locations[locIndex].location;
+
+        if (locIndex > 0) {
+            doc.addPage();
+            startY = 15;
+        }
 
         doc.setFontSize(20);
         doc.text(`Location: ${editedLocations[locIndex]}`, (doc.internal.pageSize.getWidth() / 2), startY, { align: 'center' });
@@ -390,7 +402,7 @@ export function TableViewer({ initialData, onReset, fileName }: TableViewerProps
                                       )
                                     }
 
-                                    if (lowerTableTitle === "procurement" && lowerHeader === 'procurement status') {
+                                    if (lowerTableTitle === "procurement" && lowerHeader.includes('status')) {
                                        return (
                                           <StatusDropdownCell
                                             key={`cell-${locIndex}-${table.title}-${rowIndex}-${colIndex}`}

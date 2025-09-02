@@ -3,7 +3,7 @@
 export type Table = {
   title: string;
   headers: string[];
-  rows: string[][];
+  rows: (string | null)[][];
 };
 
 export type LocationData = {
