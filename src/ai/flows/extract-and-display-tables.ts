@@ -70,13 +70,13 @@ const extractTablesFlow = ai.defineFlow(
     const {output} = await prompt(input);
 
     if (output && output.tables.length > 0) {
-      // Add "Shop Drawings Approval Date" to the Engineering table (first table)
+      // Add "Shop Drawing Approval Date" to the Engineering table (first table)
       const engineeringTable = output.tables[0];
       if (engineeringTable) {
         // Add header if it doesn't exist
-        if (!engineeringTable.headers.includes('Shop Drawings Approval Date')) {
+        if (!engineeringTable.headers.includes('Shop Drawing Approval Date')) {
           const submissionDateIndex = engineeringTable.headers.indexOf('Shop Drawing Submission Date');
-          const approvalDateHeader = 'Shop Drawings Approval Date';
+          const approvalDateHeader = 'Shop Drawing Approval Date';
           
           if (submissionDateIndex !== -1) {
             // Insert after "Shop Drawing Submission Date"
