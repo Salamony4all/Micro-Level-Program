@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { format, parseISO } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,21 @@ export function DatePickerCell({ value, onValueChange, className }: DatePickerCe
   
   // The date from the table might be in 'yyyy-MM-dd' or other formats.
   // We try to parse it, and if it's invalid, we don't select any date.
-  const date = value ? new Date(value + 'T00:00:00') : undefined; // Add time to avoid timezone issues
+  let date: Date | undefined = undefined;
+  if (value) {
+    // Try parsing yyyy-MM-dd format first.
+    const parsedDate = parse(value, 'yyyy-MM-dd', new Date());
+    if (!isNaN(parsedDate.getTime())) {
+      date = parsedDate;
+    } else {
+      // Fallback for other JS-parsable date formats
+      const fallbackDate = new Date(value);
+      if (!isNaN(fallbackDate.getTime())) {
+        date = fallbackDate;
+      }
+    }
+  }
+
 
   return (
     <TableCell className={cn("p-2", className)}>
