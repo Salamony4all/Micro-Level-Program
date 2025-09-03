@@ -1,5 +1,11 @@
 {
-  "name": "micro-level-program",
-  "version": "0.1.0",
-  "private": true
+  "name": "standalone-html-app",
+  "version": "1.0.0",
+  "description": "A simple standalone HTML file for displaying project data.",
+  "main": "index.html",
+  "scripts": {
+    "start": "echo \"Open index.html in your browser\""
+  },
+  "author": "",
+  "license": "ISC"
 }
